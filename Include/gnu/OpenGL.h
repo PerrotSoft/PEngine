@@ -1,26 +1,21 @@
 ﻿#pragma once
 
-// --- РАЗРЕШАЕМ ЭКСПЕРИМЕНТАЛЬНЫЕ РАСШИРЕНИЯ GLM (Устраняет #error) ---
 #define GLM_ENABLE_EXPERIMENTAL 
-// ----------------------------------------------------------------------
-
-#include <glad/glad.h>   // Основные функции OpenGL
-#include <GLFW/glfw3.h>  // Управление окном и контекстом
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/quaternion.hpp>
-#include <glm/gtx/quaternion.hpp>
-#include <glm/gtx/rotate_vector.hpp> 
-
 #include <vector>
 #include <string>
 #include <stdexcept>
 #include <iostream>
 #include <map> 
-#include <tiny_obj_loader.h>
-#include <stb_easy_font.h> 
-
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/matrix_transform.hpp> // Для get_transform
+// tinyobj::index_t будет определен в OpenGL.cpp, где есть TINYOBJLOADER_IMPLEMENTATION.
+using GLuint = unsigned int;
+using GLfloat = float; 
+struct GLFWwindow;
+namespace tinyobj {
+    struct index_t;
+}
 namespace gnu {
     struct Vertex {
         glm::vec3 position; // Позиция (x, y, z)
@@ -71,11 +66,7 @@ namespace gnu {
 
     // Кастомный компаратор для tinyobj::index_t
     struct tinyobj_index_cmp {
-        bool operator()(const tinyobj::index_t& a, const tinyobj::index_t& b) const {
-            if (a.vertex_index != b.vertex_index) return a.vertex_index < b.vertex_index;
-            if (a.normal_index != b.normal_index) return a.normal_index < b.normal_index;
-            return a.texcoord_index < b.texcoord_index;
-        }
+        bool operator()(const tinyobj::index_t& a, const tinyobj::index_t& b) const;
     };
 
     // --- ОСНОВНЫЕ ФУНКЦИИ ДВИЖКА ---
@@ -90,7 +81,7 @@ namespace gnu {
     Model Create_Cube_Model();
     void Draw_Mesh(const Mesh& mesh, const ShaderProgram& shader, const glm::mat4& viewProjection);
     void Draw_Model(const Model& model, const ShaderProgram& shader, const glm::mat4& viewProjection);
-    LightSource Create_Light_Source(const glm::vec3& position, const glm::vec3& color, float intensity);
+    LightSource Create_Light_Source(const glm::vec3& position, const glm::vec3& color, float intensity); LightSource Create_Light_Source(const glm::vec3& position, const glm::vec3& color, float intensity);
 
     // ⭐️ НОВОЕ: Пространство имен для функций 2D UI ⭐️
     namespace UI {

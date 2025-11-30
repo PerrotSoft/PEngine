@@ -1,15 +1,23 @@
 ﻿#include "../../Include/gnu/OpenGL.h"
+
+#define P_ENGEN_GLM_STUB_ACTIVE
+#include <glad/glad.h>   // Основные функции OpenGL
+#include <GLFW/glfw3.h>  // Управление окном и контекстом
+#include <tiny_obj_loader.h>
+#include <stb_easy_font.h> 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
 #include <string>
 #include <iostream>
-#include <GL/gl.h>
 #include <map> 
 #include <cmath> 
 #include <cstring>
-
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -55,11 +63,19 @@ ImageData load_image_data_stub(const std::string& filePath) {
 glm::mat4 gnu::Mesh::get_transform() const {
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, position);
-    model *= glm::mat4(rotation);
+    // ✅ ИСПРАВЛЕНИЕ: Используйте glm::toMat4 или glm::mat4_cast для преобразования quat в mat4. 
+    // Вместо model *= glm::mat4(rotation) используйте явное умножение.
+    model = model * glm::toMat4(rotation);
     model = glm::scale(model, scale);
     return model;
 }
-
+glm::mat4 gnu::LightSource::get_transform() const {
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, position);
+    model = model * glm::toMat4(rotation);
+    model = glm::scale(model, scale);
+    return model;
+}
 void gnu::Mesh::translate(const glm::vec3& offset) {
     position += offset;
 }
@@ -418,13 +434,18 @@ gnu::Model gnu::Create_Cube_Model() {
 }
 
 gnu::LightSource gnu::Create_Light_Source(const glm::vec3& position, const glm::vec3& color, float intensity) {
-    LightSource light;
-    light.position = position;
-    light.color = color;
-    light.intensity = intensity;
-    return light;
+    gnu::LightSource ls;
+    ls.position = position;
+    ls.color = color;
+    ls.intensity = intensity;
+    return ls;
 }
-
+bool gnu::tinyobj_index_cmp::operator()(const tinyobj::index_t& a, const tinyobj::index_t& b) const {
+    if (a.vertex_index != b.vertex_index) return a.vertex_index < b.vertex_index;
+    if (a.normal_index != b.normal_index) return a.normal_index < b.normal_index;
+    // В оригинальном коде была ошибка: требуется сравнить все 3 индекса.
+    return a.texcoord_index < b.texcoord_index;
+}
 // -------------------------------------------------------------------
 // --- 5. ОТРЕНДЕРИТЬ ---
 // -------------------------------------------------------------------
