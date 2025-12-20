@@ -42,13 +42,13 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug Linox|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -61,13 +61,13 @@
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug Linox|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
@@ -104,11 +104,15 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug Linox|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)Lib\x86\</OutDir>
+    <IntDir>$(SolutionDir)PELib\x86\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>Libraries\include;$(IncludePath)</IncludePath>
     <LibraryPath>Libraries\lib;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)Lib\x86\</OutDir>
+    <IntDir>$(SolutionDir)PELib\x86\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -121,11 +125,15 @@
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>Libraries\include;$(IncludePath)</IncludePath>
     <LibraryPath>Libraries\lib;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)Lib\</OutDir>
+    <IntDir>$(SolutionDir)PELib\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>Libraries\include;$(IncludePath)</IncludePath>
     <LibraryPath>Libraries\lib;$(LibraryPath)</LibraryPath>
+    <OutDir>$(SolutionDir)Lib\</OutDir>
+    <IntDir>$(SolutionDir)PELib\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -133,7 +141,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Library\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Library\Include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -143,10 +151,10 @@
       <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Libraries\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Lib>
-      <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Library\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Library\Lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>User32.lib;
 
-Gdi32.lib;Shell32.lib;glfw3x86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+Gdi32.lib;Shell32.lib;glfw3x86.lib</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug Linox|Win32'">
@@ -155,7 +163,7 @@ Gdi32.lib;Shell32.lib;glfw3x86.lib;%(AdditionalDependencies)</AdditionalDependen
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Libraries\include\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Library\Include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -164,6 +172,12 @@ Gdi32.lib;Shell32.lib;glfw3x86.lib;%(AdditionalDependencies)</AdditionalDependen
       <AdditionalDependencies>glfw3x86.lib;opengl32.lib;gdi32.lib;user32.lib;shell32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Libraries\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <Lib>
+      <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Library\Lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>User32.lib;
+
+Gdi32.lib;Shell32.lib;glfw3x86.lib</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
@@ -173,6 +187,8 @@ Gdi32.lib;Shell32.lib;glfw3x86.lib;%(AdditionalDependencies)</AdditionalDependen
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Library\Include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -181,6 +197,12 @@ Gdi32.lib;Shell32.lib;glfw3x86.lib;%(AdditionalDependencies)</AdditionalDependen
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Library\Lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>User32.lib;
+
+Gdi32.lib;Shell32.lib;glfw3x86.lib</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -188,7 +210,7 @@ Gdi32.lib;Shell32.lib;glfw3x86.lib;%(AdditionalDependencies)</AdditionalDependen
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Library\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Library\Include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -198,10 +220,10 @@ Gdi32.lib;Shell32.lib;glfw3x86.lib;%(AdditionalDependencies)</AdditionalDependen
       <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Libraries\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Lib>
-      <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Library\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Library\Lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>User32.lib;
 
-Gdi32.lib;Shell32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencies>
+Gdi32.lib;Shell32.lib;glfw3.lib</AdditionalDependencies>
     </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug Linox|x64'">
@@ -210,7 +232,7 @@ Gdi32.lib;Shell32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencie
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Libraries\include\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Library\Include</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -219,6 +241,12 @@ Gdi32.lib;Shell32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencie
       <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Libraries\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <Lib>
+      <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Library\Lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>User32.lib;
+
+Gdi32.lib;Shell32.lib;glfw3.lib</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -228,7 +256,8 @@ Gdi32.lib;Shell32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencie
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Libraries\include\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\perro\source\repos\PEngen\Library\Include</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -238,6 +267,12 @@ Gdi32.lib;Shell32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencie
       <AdditionalDependencies>glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Libraries\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <Lib>
+      <AdditionalLibraryDirectories>C:\Users\perro\source\repos\PEngen\Library\Lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>User32.lib;
+
+Gdi32.lib;Shell32.lib;glfw3.lib</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="IncludeCpp\PEngen\Forder_Sys.cpp" />
@@ -247,15 +282,16 @@ Gdi32.lib;Shell32.lib;glfw3.lib;%(AdditionalDependencies)</AdditionalDependencie
     <ClCompile Include="IncludeCpp\cfg\log.cpp" />
     <ClCompile Include="IncludeCpp\gnu\OpenGL.cpp" />
     <ClCompile Include="IncludeCpp\Input\Input.cpp" />
+    <ClCompile Include="IncludeCpp\PEngen\Scene.cpp" />
     <ClCompile Include="Library\Include\glm\detail\glm.cpp" />
     <ClCompile Include="Library\Include\glm\glm.cppm" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\Downloads\zipper.h" />
     <ClInclude Include="Include\PEngen\Forder_Sys.h" />
     <ClInclude Include="Include\Audio\Audio.h" />
     <ClInclude Include="Include\cfg\cfg.h" />
     <ClInclude Include="Include\cfg\log.h" />
+    <ClInclude Include="Include\PEngen\Scene.h" />
     <ClInclude Include="Library\Include\glad\glad.h" />
     <ClInclude Include="Library\Include\GLFW\glfw3.h" />
     <ClInclude Include="Library\Include\GLFW\glfw3native.h" />

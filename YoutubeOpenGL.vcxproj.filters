@@ -42,6 +42,9 @@
     <ClCompile Include="IncludeCpp\PEngen\Forder_Sys.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="IncludeCpp\PEngen\Scene.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Include\Audio\Audio.h">
@@ -953,10 +956,10 @@
     <ClInclude Include="Include\PEngen\Forder_Sys.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\Downloads\zipper.h">
+    <ClInclude Include="Library\Include\zipper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Library\Include\zipper.h">
+    <ClInclude Include="Include\PEngen\Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

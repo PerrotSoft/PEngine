@@ -17,7 +17,7 @@ namespace Input {
 
     // --- Клавиатура ---
 
-    void InputManager::KeyDown(WORD vkCode) {
+    void InputManager::PEIKeyDown(WORD vkCode) {
         INPUT input;
         ZeroMemory(&input, sizeof(input));
 
@@ -28,7 +28,7 @@ namespace Input {
         SendInput(1, &input, sizeof(INPUT));
     }
 
-    void InputManager::KeyUp(WORD vkCode) {
+    void InputManager::PEIKeyUp(WORD vkCode) {
         INPUT input;
         ZeroMemory(&input, sizeof(input));
 
@@ -39,24 +39,24 @@ namespace Input {
         SendInput(1, &input, sizeof(INPUT));
     }
 
-    void InputManager::KeyPress(WORD vkCode) {
-        KeyDown(vkCode);
-        KeyUp(vkCode);
+    void InputManager::PEIKeyPress(WORD vkCode) {
+        PEIKeyDown(vkCode);
+        PEIKeyUp(vkCode);
     }
 
     // --- Мышь ---
 
-    void InputManager::MouseClickL() {
+    void InputManager::PEIMouseClickL() {
         MouseEvent(MOUSEEVENTF_LEFTDOWN);
         MouseEvent(MOUSEEVENTF_LEFTUP);
     }
 
-    void InputManager::MouseClickR() {
+    void InputManager::PEIMouseClickR() {
         MouseEvent(MOUSEEVENTF_RIGHTDOWN);
         MouseEvent(MOUSEEVENTF_RIGHTUP);
     }
 
-    void InputManager::MouseMoveAbsolute(int x, int y) {
+    void InputManager::PEIMouseMoveAbsolute(int x, int y) {
         // NOTE: MOUSEEVENTF_ABSOLUTE и MOUSEEVENTF_VIRTUALDESK для абсолютного позиционирования
         INPUT input;
         ZeroMemory(&input, sizeof(input));
@@ -69,7 +69,7 @@ namespace Input {
         SendInput(1, &input, sizeof(INPUT));
     }
 
-    void InputManager::MouseMoveRelative(int dx, int dy) {
+    void InputManager::PEIMouseMoveRelative(int dx, int dy) {
         INPUT input;
         ZeroMemory(&input, sizeof(input));
 
@@ -81,7 +81,7 @@ namespace Input {
         SendInput(1, &input, sizeof(INPUT));
     }
 
-    void InputManager::MouseScroll(int delta) {
+    void InputManager::PEIMouseScroll(int delta) {
         MouseEvent(MOUSEEVENTF_WHEEL, delta);
     }
 

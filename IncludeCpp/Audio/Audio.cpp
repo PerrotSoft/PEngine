@@ -35,7 +35,7 @@ namespace Audio {
         // 1. Открываем файл
         command = "open \"" + filePath + "\" type mpegvideo alias " + alias;
         if (mciSendStringA(command.c_str(), NULL, 0, NULL) != 0) {
-            logger(("Audio Error: File not found: " + filePath).c_str());
+            PElogger(("Audio Error: File not found: " + filePath).c_str());
             return;
         }
 
@@ -59,7 +59,7 @@ namespace Audio {
         command = "open \"" + filePath + "\" type mpegvideo alias " + alias;
         if (mciSendStringA(command.c_str(), NULL, 0, NULL) != 0) {
             std::cout << "Audio Error [Thread]: Could not open file: " << filePath << std::endl;
-            logger(("Audio Error: File not found: " + filePath).c_str());
+            PElogger(("Audio Error: File not found: " + filePath).c_str());
             AudioManager::loopFlags[id] = false;
             return;
         }
@@ -94,15 +94,15 @@ namespace Audio {
 
 
     // --- PlaySound (ОДИНОЧНЫЙ ЗВУК) ---
-    void AudioManager::PlaySound(const std::string& filePath, int id) {
+    void AudioManager::PEAPlaySound(const std::string& filePath, int id) {
         if (!FileExists(filePath)) {
             std::cout << "Audio Error: File not found: " << filePath << std::endl;
-            logger(("Audio Error: File not found: " + filePath).c_str());
+            PElogger(("Audio Error: File not found: " + filePath).c_str());
             return;
         }
 
         if (activeSounds.find(id) != activeSounds.end()) {
-            StopSound(id);
+            PEAStopSound(id);
         }
 
         std::string alias = getAlias(id);
@@ -117,15 +117,15 @@ namespace Audio {
 
 
     // --- PlayLoopedSound (ЗАЦИКЛЕННЫЙ ЗВУК) ---
-    void AudioManager::PlayLoopedSound(const std::string& filePath, int id) {
+    void AudioManager::PEAPlayLoopedSound(const std::string& filePath, int id) {
         if (!FileExists(filePath)) {
             std::cout << "Audio Error: File not found: " << filePath << std::endl;
-            logger(("Audio Error: File not found: " + filePath).c_str());
+            PElogger(("Audio Error: File not found: " + filePath).c_str());
             return;
         }
 
         std::string alias = getAlias(id);
-        StopSound(id);
+        PEAStopSound(id);
 
         activeSounds[id] = alias;
         loopFlags[id] = true;
@@ -135,7 +135,7 @@ namespace Audio {
     }
 
     // --- StopSound (ОСТАНОВКА) ---
-    void AudioManager::StopSound(int id) {
+    void AudioManager::PEAStopSound(int id) {
         // 1. МГНОВЕННАЯ ТИШИНА: Отправляем команду остановки MCI
         auto soundIt = activeSounds.find(id);
         if (soundIt != activeSounds.end()) {
@@ -143,7 +143,7 @@ namespace Audio {
             mciSendStringA(("stop " + alias).c_str(), NULL, 0, NULL);
         }
         else {
-            logger((std::string("Audio Warning: Cannot Stop. Sound ID ") + std::to_string(id) + " not found.").c_str());
+            PElogger((std::string("Audio Warning: Cannot Stop. Sound ID ") + std::to_string(id) + " not found.").c_str());
             return;
         }
 
@@ -177,7 +177,7 @@ namespace Audio {
 
     // --- SetVolume, StopAll, PlaySoundW ---
 
-    void AudioManager::SetVolume(float volume, int id) {
+    void AudioManager::PEASetVolume(float volume, int id) {
         if (volume < 0.0f) volume = 0.0f;
         if (volume > 1.0f) volume = 1.0f;
 
@@ -190,11 +190,11 @@ namespace Audio {
         }
         else {
             std::cout << "Audio Warning: Cannot set volume. Sound ID " << id << " not found." << std::endl;
-            logger((std::string("Audio Warning: Cannot set volume. Sound ID ") + std::to_string(id) + " not found.").c_str());
+            PElogger((std::string("Audio Warning: Cannot set volume. Sound ID ") + std::to_string(id) + " not found.").c_str());
         }
     }
 
-    void AudioManager::StopAll() {
+    void AudioManager::PEAStopAll() {
         for (auto& [id, flag] : loopFlags) {
             flag = false;
         }
@@ -214,15 +214,15 @@ namespace Audio {
         activeSounds.clear();
         loopFlags.clear();
     }
-    void AudioManager::PlaySoundW(const std::wstring& filePath, int id) {
+    void AudioManager::PEAPlaySoundW(const std::wstring& filePath, int id) {
         if (!FileExistsW(filePath)) {
             std::wcout << L"Audio Error: File not found: " << filePath << std::endl;
 
-            // Формирование сообщения для logger (const char*)
+            // Формирование сообщения для PElogger (const char*)
             std::string log_message = "Audio Error: File not found: name";
 
-            // Отправка в logger
-            logger(log_message.c_str());
+            // Отправка в PElogger
+            PElogger(log_message.c_str());
             return;
         }
 
@@ -234,7 +234,7 @@ namespace Audio {
             utf8Path.pop_back();
         }
 
-        PlaySound(utf8Path, id);
+        PEAPlaySound(utf8Path, id);
     }
 
 } // namespace Audio

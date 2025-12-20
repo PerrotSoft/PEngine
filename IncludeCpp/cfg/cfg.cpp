@@ -2,7 +2,7 @@
 #include <string>
 #include <fstream>
 using namespace std;
-void cfg::save(const string& filePath, const string& data)
+void cfg::PEsave(const string& filePath, const string& data)
 {
 	std::ofstream file("PEngen\\cfg\\" + filePath);
 	if (file.is_open())
@@ -11,7 +11,7 @@ void cfg::save(const string& filePath, const string& data)
 		file.close();
 	}
 }
-string cfg::load(const string& filePath)
+string cfg::PEload(const string& filePath)
 {
 	std::ifstream file("PEngen\\cfg\\"+filePath);
 	string data;

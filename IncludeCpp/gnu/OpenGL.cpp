@@ -42,28 +42,11 @@ struct ImageData {
     std::vector<unsigned char> data;
 };
 
-// Функция-заглушка: имитирует чтение и декодирование PNG/JPG
-ImageData load_image_data_stub(const std::string& filePath) {
-    std::cout << "DEBUG: Imitating loading texture file: " << filePath << std::endl;
-
-    // Имитация загруженного изображения (1x1 белый пиксель, 3 компонента - RGB)
-    ImageData img;
-    img.width = 1;
-    img.height = 1;
-    img.components = 3;
-    img.data = { 255, 255, 255 }; // Белый пиксель
-
-    // В реальном проекте, используйте stbi_load:
-    // unsigned char *data = stbi_load(filePath.c_str(), &img.width, &img.height, &img.components, 0);
-    // ...
-    return img;
-}
-
 // -------------------------------------------------------------------
-// --- РЕАЛИЗАЦИЯ ФУНКЦИЙ GLM/MESH ---
+// --- РЕАЛИЗАЦИЯ ФУНКЦИЙ GLM/PEGLMesh ---
 // -------------------------------------------------------------------
 
-glm::mat4 gnu::Mesh::get_transform() const {
+glm::mat4 gnu::PEGLMesh::get_transform() const {
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, position);
     // ✅ ИСПРАВЛЕНИЕ: Используйте glm::toMat4 или glm::mat4_cast для преобразования quat в mat4. 
@@ -72,26 +55,26 @@ glm::mat4 gnu::Mesh::get_transform() const {
     model = glm::scale(model, scale);
     return model;
 }
-glm::mat4 gnu::LightSource::get_transform() const {
+glm::mat4 gnu::PEGLLightSource::get_transform() const {
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::translate(model, position);
     model = model * glm::toMat4(rotation);
     model = glm::scale(model, scale);
     return model;
 }
-void gnu::Mesh::translate(const glm::vec3& offset) {
+void gnu::PEGLMesh::translate(const glm::vec3& offset) {
     position += offset;
 }
 
-void gnu::Mesh::rotate(const glm::quat& delta_rotation) {
+void gnu::PEGLMesh::rotate(const glm::quat& delta_rotation) {
     rotation = delta_rotation * rotation;
 }
 
-void gnu::Mesh::set_scale(const glm::vec3& new_scale) {
+void gnu::PEGLMesh::set_scale(const glm::vec3& new_scale) {
     scale = new_scale;
 }
 
-void gnu::Mesh::delete_gpu_resources() {
+void gnu::PEGLMesh::delete_gpu_resources() {
     if (VAO != 0) glDeleteVertexArrays(1, &VAO);
     if (VBO != 0) glDeleteBuffers(1, &VBO);
     if (EBO != 0) glDeleteBuffers(1, &EBO);
@@ -99,7 +82,25 @@ void gnu::Mesh::delete_gpu_resources() {
     indexCount = 0;
 }
 
+void gnu::PEGLDelete_Shader_Program(PEGLShaderProgram& program) {
+    if (program.programID != 0) {
+        glDeleteProgram(program.programID);
+        program.programID = 0;
+    }
+}
 
+void gnu::PEGLDelete_Model(PEGLModel& model) {
+    for (auto& mesh : model.meshes) {
+        if (mesh.VAO != 0) glDeleteVertexArrays(1, &mesh.VAO);
+        if (mesh.VBO != 0) glDeleteBuffers(1, &mesh.VBO);
+        if (mesh.EBO != 0) glDeleteBuffers(1, &mesh.EBO);
+
+        // Сброс всех идентификаторов
+        mesh.VAO = mesh.VBO = mesh.EBO = mesh.textureID = 0;
+        mesh.indexCount = 0;
+    }
+    model.meshes.clear();
+}
 // -------------------------------------------------------------------
 // --- 1. ИНИЦИАЛИЗАЦИЯ И ШЕЙДЕРЫ ---
 // -------------------------------------------------------------------
@@ -137,10 +138,10 @@ static GLuint Compile_Shader(GLuint type, const std::string& source) {
     return shaderID;
 }
 
-gnu::ShaderProgram gnu::Compile_and_Link_Shader(const std::string& vertexPath,
+gnu::PEGLShaderProgram gnu::PEGLCompile_and_Link_Shader(const std::string& vertexPath,
     const std::string& fragmentPath)
 {
-    ShaderProgram program;
+    PEGLShaderProgram program;
     std::string fullVertPath = SHADERS_BASE_PATH + vertexPath;
     std::string fullFragPath = SHADERS_BASE_PATH + fragmentPath;
 
@@ -166,7 +167,7 @@ gnu::ShaderProgram gnu::Compile_and_Link_Shader(const std::string& vertexPath,
             glGetProgramInfoLog(program.programID, infoLogLength, NULL, &errorMessage[0]);
             glDeleteProgram(program.programID);
             program.programID = 0;
-            logger((std::string("Shader Linking Failed: ") + std::string(errorMessage.begin(), errorMessage.end())).c_str());
+            PElogger((std::string("Shader Linking Failed: ") + std::string(errorMessage.begin(), errorMessage.end())).c_str());
             throw std::runtime_error("Shader Linking Failed: " + std::string(errorMessage.begin(), errorMessage.end()));
         }
 
@@ -177,7 +178,7 @@ gnu::ShaderProgram gnu::Compile_and_Link_Shader(const std::string& vertexPath,
     }
     catch (const std::runtime_error& e) {
         std::cerr << "Shader Error: " << e.what() << std::endl;
-        logger((std::string("Shader Error: ") + e.what()).c_str());
+        PElogger((std::string("Shader Error: ") + e.what()).c_str());
         program.programID = 0;
     }
     return program;
@@ -196,30 +197,30 @@ static void glfw_error_callback(int error, const char* description) {
 static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
-gnu::ShaderProgram* gnu::Audo_Compile_and_Link_Shader() {
-    gnu::ShaderProgram modelShader = gnu::Compile_and_Link_Shader("simple.vert", "simple.frag");
+gnu::PEGLShaderProgram* gnu::PEGLAudo_Compile_and_Link_Shader() {
+    gnu::PEGLShaderProgram modelShader = gnu::PEGLCompile_and_Link_Shader("simple.vert", "simple.frag");
 
-    gnu::ShaderProgram uiShader = gnu::Compile_and_Link_Shader("simple.vert", "simple.frag");
+    gnu::PEGLShaderProgram uiShader = gnu::PEGLCompile_and_Link_Shader("simple.vert", "simple.frag");
 
-    gnu::ShaderProgram textShader = gnu::Compile_and_Link_Shader("text.vert", "text.frag");
-	return new gnu::ShaderProgram[3]{ modelShader, uiShader, textShader };
+    gnu::PEGLShaderProgram textShader = gnu::PEGLCompile_and_Link_Shader("text.vert", "text.frag");
+	return new gnu::PEGLShaderProgram[3]{ modelShader, uiShader, textShader };
 }
 
-void gnu::Show_Loading_Screen(GLFWwindow* window,
-    const gnu::ShaderProgram& uiShader,
+void gnu::PEGLShow_Loading_Screen(GLFWwindow* window,
+    const gnu::PEGLShaderProgram& uiShader,
     const glm::mat4& orthoMatrix)
 {
     if (!window || uiShader.programID == 0) {
-        logger("ERROR: Failed to initialize loading screen (Window or Shader is NULL).");
+        PElogger("ERROR: Failed to initialize loading screen (Window or Shader is NULL).");
         return;
     }
 
     // 1. ЗАГРУЗКА ТЕКСТУРЫ
     // Предполагаем, что путь ведет к вашему файлу в папке textures/
-    GLuint splashTextureID = Load_Texture_From_File(BASE_PATH_ICON_PE);
+    GLuint splashTextureID = PEGLLoad_Texture_From_File(BASE_PATH_ICON_PE);
 
     if (splashTextureID == 0) {
-        logger((std::string("WARNING: Failed to load splash screen texture: ") + BASE_PATH_ICON_PE).c_str());
+        PElogger((std::string("WARNING: Failed to load splash screen texture: ") + BASE_PATH_ICON_PE).c_str());
         // Продолжаем без заставки
         return;
     }
@@ -231,14 +232,14 @@ void gnu::Show_Loading_Screen(GLFWwindow* window,
 
     // * UIQuad должен быть объявлен в gnu::UI::, и иметь публичный конструктор *
     // Мы создадим временную структуру, чтобы не зависеть от скрытой реализации
-    gnu::UI::Image splashImage;
+    gnu::UI::PEGLImage splashImage;
 
     // Создаем базовый квад (предполагаем, что вам нужен квад для UI)
-    // ВАЖНО: Ваша система UI использует gnu::UI::Mesh Create_Quad_Mesh();
+    // ВАЖНО: Ваша система UI использует gnu::UI::PEGLMesh Create_Quad_PEGLMesh();
     // Мы должны вызвать ее, чтобы получить VAO/VBO.
-    static gnu::Mesh staticQuadMesh = gnu::UI::Create_Quad_Mesh();
+    static gnu::PEGLMesh staticQuadPEGLMesh = gnu::UI::PEGLCreate_Quad_Mesh();
 
-    splashImage.mesh = staticQuadMesh;
+    splashImage.mesh = staticQuadPEGLMesh;
     splashImage.textureID = splashTextureID;
     splashImage.position = glm::vec2(0.0f, 0.0f); // Начинаем с левого верхнего угла
     splashImage.size = glm::vec2((float)windowWidth, (float)windowHeight); // Размер окна
@@ -251,7 +252,7 @@ void gnu::Show_Loading_Screen(GLFWwindow* window,
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Отрисовка заставки
-    gnu::UI::Draw_Image(splashImage, uiShader, orthoMatrix);
+    gnu::UI::PEGLDraw_Image(splashImage, uiShader, orthoMatrix);
 
     // Обмен буферов, чтобы показать заставку
     glfwSwapBuffers(window);
@@ -262,12 +263,12 @@ void gnu::Show_Loading_Screen(GLFWwindow* window,
     // не удаляйте ее! Если нет, то:
     // glDeleteTextures(1, &splashTextureID);
 }
-GLFWwindow* gnu::Init_OpenGL_Window(int width, int height, const std::string& title) {
+GLFWwindow* gnu::PEGLInit_OpenGL_Window(int width, int height, const std::string& title) {
     glfwSetErrorCallback(glfw_error_callback);
 
     if (!glfwInit()) {
         std::cerr << "Failed to initialize GLFW" << std::endl;
-        logger("Failed to initialize GLFW");
+        PElogger("Failed to initialize GLFW");
         return nullptr;
     }
 
@@ -279,7 +280,7 @@ GLFWwindow* gnu::Init_OpenGL_Window(int width, int height, const std::string& ti
     GLFWwindow* window = glfwCreateWindow(width, height, title.c_str(), NULL, NULL);
     if (!window) {
         std::cerr << "Failed to open GLFW window." << std::endl;
-        logger("Failed to open GLFW window.");
+        PElogger("Failed to open GLFW window.");
         glfwTerminate();
         return nullptr;
     }
@@ -288,7 +289,7 @@ GLFWwindow* gnu::Init_OpenGL_Window(int width, int height, const std::string& ti
     // Инициализация GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cerr << "Failed to initialize GLAD" << std::endl;
-        logger("Failed to initialize GLAD");
+        PElogger("Failed to initialize GLAD");
         glfwDestroyWindow(window);
         glfwTerminate();
         return nullptr;
@@ -302,7 +303,7 @@ GLFWwindow* gnu::Init_OpenGL_Window(int width, int height, const std::string& ti
 
 // -------------------------------------------------------------------
 // --- 3. ТЕКСТУРЫ ---
-GLuint gnu::Load_Texture_From_File(const std::string& filePath) {
+GLuint gnu::PEGLLoad_Texture_From_File(const std::string& filePath) {
     GLuint textureID = 0;
     int width, height, comp;
 
@@ -331,7 +332,7 @@ GLuint gnu::Load_Texture_From_File(const std::string& filePath) {
     }
     else {
         std::cerr << "ERROR: STB_IMAGE failed to load texture: " << filePath << std::endl;
-		logger(("ERROR: STB_IMAGE failed to load texture: " + filePath).c_str());
+		PElogger(("ERROR: STB_IMAGE failed to load texture: " + filePath).c_str());
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -341,46 +342,46 @@ GLuint gnu::Load_Texture_From_File(const std::string& filePath) {
 // --- 4. МЕШИ И МОДЕЛИ ---
 // -------------------------------------------------------------------
 
-void gnu::Prepare_Mesh_For_GPU(Mesh& mesh,
-    const std::vector<Vertex>& vertices,
+void gnu::PEGLPrepare_Mesh_For_GPU(PEGLMesh& PEGLMesh,
+    const std::vector<PEGLVertex>& vertices,
     const std::vector<uint32_t>& indices)
 {
     // Очистка на всякий случай
-    mesh.delete_gpu_resources();
+    PEGLMesh.delete_gpu_resources();
 
-    glGenVertexArrays(1, &mesh.VAO);
-    glGenBuffers(1, &mesh.VBO);
-    glGenBuffers(1, &mesh.EBO);
+    glGenVertexArrays(1, &PEGLMesh.VAO);
+    glGenBuffers(1, &PEGLMesh.VBO);
+    glGenBuffers(1, &PEGLMesh.EBO);
 
-    glBindVertexArray(mesh.VAO);
+    glBindVertexArray(PEGLMesh.VAO);
 
     // VBO
-    glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, PEGLMesh.VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(PEGLVertex), vertices.data(), GL_STATIC_DRAW);
 
     // EBO
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, PEGLMesh.EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
 
     // Layout 0: Position
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, position));
 
     // Layout 1: Normal
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, normal));
 
     // Layout 2: TexCoords
     glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoords));
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, texCoords));
 
     glBindVertexArray(0);
 
-    mesh.indexCount = (uint32_t)indices.size();
+    PEGLMesh.indexCount = (uint32_t)indices.size();
 }
 
-gnu::Model gnu::Load_Model_From_File_OBJ(const std::string& filePath, const std::string& baseDir) {
-    Model model;
+gnu::PEGLModel gnu::PEGLLoad_Model_From_File_OBJ(const std::string& filePath, const std::string& baseDir) {
+    PEGLModel model;
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -390,19 +391,19 @@ gnu::Model gnu::Load_Model_From_File_OBJ(const std::string& filePath, const std:
 
     if (!warn.empty()) {
         std::cout << "tinyobjloader WARNING: " << warn << std::endl;
-		logger(("tinyobjloader WARNING: " + warn).c_str());
+		PElogger(("tinyobjloader WARNING: " + warn).c_str());
     }
     if (!err.empty()) {
         throw std::runtime_error("tinyobjloader ERROR: " + err);
-		logger(("tinyobjloader ERROR: " + err).c_str());
+		PElogger(("tinyobjloader ERROR: " + err).c_str());
     }
     if (!ret) {
         throw std::runtime_error("Failed to load/parse OBJ file: " + filePath);
-		logger(("Failed to load/parse OBJ file: " + filePath).c_str());
+		PElogger(("Failed to load/parse OBJ file: " + filePath).c_str());
     }
 
-    std::map<tinyobj::index_t, uint32_t, tinyobj_index_cmp> unique_indices;
-    std::vector<Vertex> vertices;
+    std::map<tinyobj::index_t, uint32_t, PEGLtinyobj_index_cmp> unique_indices;
+    std::vector<PEGLVertex> vertices;
     std::vector<uint32_t> indices;
 
     // Предполагаем, что OBJ состоит из одной сетки для простоты
@@ -415,7 +416,7 @@ gnu::Model gnu::Load_Model_From_File_OBJ(const std::string& filePath, const std:
         for (const auto& index : shape.mesh.indices) {
             if (unique_indices.count(index) == 0) {
                 // Добавить новую вершину
-                Vertex vertex{};
+                PEGLVertex vertex{};
                 // Position
                 vertex.position = {
                     attrib.vertices[3 * index.vertex_index + 0],
@@ -450,18 +451,18 @@ gnu::Model gnu::Load_Model_From_File_OBJ(const std::string& filePath, const std:
             }
         }
 
-        // Создать и подготовить Mesh
-        Mesh mesh;
-        Prepare_Mesh_For_GPU(mesh, vertices, indices);
-        model.meshes.push_back(std::move(mesh));
+        // Создать и подготовить PEGLMesh
+        PEGLMesh PEGLMesh;
+        PEGLPrepare_Mesh_For_GPU(PEGLMesh, vertices, indices);
+        model.meshes.push_back(std::move(PEGLMesh));
     }
 
     return model;
 }
 
-gnu::Model gnu::Create_Cube_Model() {
-    Model model;
-    std::vector<Vertex> vertices = {
+gnu::PEGLModel gnu::PEGLCreate_Cube_Model() {
+    PEGLModel model;
+    std::vector<PEGLVertex> vertices = {
         // ... (данные вершин куба) ...
         // Передняя грань
         {{-0.5f, -0.5f,  0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
@@ -504,20 +505,20 @@ gnu::Model gnu::Create_Cube_Model() {
         20, 21, 22, 20, 22, 23  // Нижняя
     };
 
-    Mesh cubeMesh;
-    Prepare_Mesh_For_GPU(cubeMesh, vertices, indices);
-    model.meshes.push_back(std::move(cubeMesh));
+    PEGLMesh cubePEGLMesh;
+    PEGLPrepare_Mesh_For_GPU(cubePEGLMesh, vertices, indices);
+    model.meshes.push_back(std::move(cubePEGLMesh));
     return model;
 }
 
-gnu::LightSource gnu::Create_Light_Source(const glm::vec3& position, const glm::vec3& color, float intensity) {
-    gnu::LightSource ls;
+gnu::PEGLLightSource gnu::PEGLCreate_Light_Source(const glm::vec3& position, const glm::vec3& color, float intensity) {
+    gnu::PEGLLightSource ls;
     ls.position = position;
     ls.color = color;
     ls.intensity = intensity;
     return ls;
 }
-bool gnu::tinyobj_index_cmp::operator()(const tinyobj::index_t& a, const tinyobj::index_t& b) const {
+bool gnu::PEGLtinyobj_index_cmp::operator()(const tinyobj::index_t& a, const tinyobj::index_t& b) const {
     if (a.vertex_index != b.vertex_index) return a.vertex_index < b.vertex_index;
     if (a.normal_index != b.normal_index) return a.normal_index < b.normal_index;
     // В оригинальном коде была ошибка: требуется сравнить все 3 индекса.
@@ -527,13 +528,13 @@ bool gnu::tinyobj_index_cmp::operator()(const tinyobj::index_t& a, const tinyobj
 // --- 5. ОТРЕНДЕРИТЬ ---
 // -------------------------------------------------------------------
 
-void gnu::Draw_Mesh(const Mesh& mesh, const ShaderProgram& shader, const glm::mat4& viewProjection) {
-    if (mesh.VAO == 0) return;
+void gnu::PEGLDraw_Mesh(const PEGLMesh& PEGLMesh, const PEGLShaderProgram& shader, const glm::mat4& viewProjection) {
+    if (PEGLMesh.VAO == 0) return;
 
     glUseProgram(shader.programID);
 
     // 1. МАТРИЦЫ
-    glm::mat4 model = mesh.get_transform();
+    glm::mat4 model = PEGLMesh.get_transform();
     glm::mat4 MVP = viewProjection * model;
 
     GLint MVPLoc = glGetUniformLocation(shader.programID, "MVP");
@@ -548,12 +549,12 @@ void gnu::Draw_Mesh(const Mesh& mesh, const ShaderProgram& shader, const glm::ma
     // 2. ТЕКСТУРА И ЦВЕТ
     GLint useTexLoc = glGetUniformLocation(shader.programID, "useTexture");
 
-    if (mesh.textureID != 0) {
+    if (PEGLMesh.textureID != 0) {
         // Использовать текстуру
         if (useTexLoc != -1) glUniform1i(useTexLoc, 1);
 
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, mesh.textureID);
+        glBindTexture(GL_TEXTURE_2D, PEGLMesh.textureID);
 
         GLint samplerLoc = glGetUniformLocation(shader.programID, "ourTextureSampler");
         if (samplerLoc != -1) glUniform1i(samplerLoc, 0); // Юнит 0
@@ -565,13 +566,13 @@ void gnu::Draw_Mesh(const Mesh& mesh, const ShaderProgram& shader, const glm::ma
 
         GLint colorLoc = glGetUniformLocation(shader.programID, "baseColor");
         if (colorLoc != -1) {
-            glUniform3f(colorLoc, mesh.baseColor.x, mesh.baseColor.y, mesh.baseColor.z);
+            glUniform3f(colorLoc, PEGLMesh.baseColor.x, PEGLMesh.baseColor.y, PEGLMesh.baseColor.z);
         }
     }
 
     // 3. Рисование
-    glBindVertexArray(mesh.VAO);
-    glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(PEGLMesh.VAO);
+    glDrawElements(GL_TRIANGLES, PEGLMesh.indexCount, GL_UNSIGNED_INT, 0);
 
     // 4. Очистка
     glBindVertexArray(0);
@@ -579,9 +580,9 @@ void gnu::Draw_Mesh(const Mesh& mesh, const ShaderProgram& shader, const glm::ma
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void gnu::Draw_Model(const Model& model, const ShaderProgram& shader, const glm::mat4& viewProjection) {
-    for (const auto& mesh : model.meshes) {
-        Draw_Mesh(mesh, shader, viewProjection);
+void gnu::PEGLDraw_Model(const PEGLModel& model, const PEGLShaderProgram& shader, const glm::mat4& viewProjection) {
+    for (const auto& PEGLMesh : model.meshes) {
+        PEGLDraw_Mesh(PEGLMesh, shader, viewProjection);
     }
 }
 
@@ -610,7 +611,7 @@ namespace gnu {
         // ----------------------------------------------------------------
         // 1. UIQuad::get_transform() 
         // ----------------------------------------------------------------
-        glm::mat4 UIQuad::get_transform() const {
+        glm::mat4 PEGLUIQuad::get_transform() const {
             float z_position = -this->layer * 0.001f;
 
             glm::mat4 model = glm::mat4(1.0f);
@@ -622,10 +623,10 @@ namespace gnu {
         }
 
         // ----------------------------------------------------------------
-        // 2. Create_Quad_Mesh()
+        // 2. Create_Quad_PEGLMesh()
         // ----------------------------------------------------------------
-        Mesh Create_Quad_Mesh() {
-            std::vector<Vertex> vertices = {
+        PEGLMesh PEGLCreate_Quad_Mesh() {
+            std::vector<PEGLVertex> vertices = {
                 {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
                 {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
                 {{1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
@@ -633,36 +634,36 @@ namespace gnu {
             };
             std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
 
-            Mesh quadMesh;
+            PEGLMesh quadPEGLMesh;
 
-            // ИМИТАЦИЯ Prepare_Mesh_For_GPU:
-            glGenVertexArrays(1, &quadMesh.VAO);
-            glGenBuffers(1, &quadMesh.VBO);
-            glGenBuffers(1, &quadMesh.EBO);
-            glBindVertexArray(quadMesh.VAO);
-            glBindBuffer(GL_ARRAY_BUFFER, quadMesh.VBO);
-            glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadMesh.EBO);
+            // ИМИТАЦИЯ Prepare_PEGLMesh_For_GPU:
+            glGenVertexArrays(1, &quadPEGLMesh.VAO);
+            glGenBuffers(1, &quadPEGLMesh.VBO);
+            glGenBuffers(1, &quadPEGLMesh.EBO);
+            glBindVertexArray(quadPEGLMesh.VAO);
+            glBindBuffer(GL_ARRAY_BUFFER, quadPEGLMesh.VBO);
+            glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(PEGLVertex), vertices.data(), GL_STATIC_DRAW);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadPEGLMesh.EBO);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
 
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, position));
             glEnableVertexAttribArray(0);
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, normal));
             glEnableVertexAttribArray(1);
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoords));
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, texCoords));
             glEnableVertexAttribArray(2);
 
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             glBindVertexArray(0);
 
-            quadMesh.indexCount = indices.size();
-            return quadMesh;
+            quadPEGLMesh.indexCount = indices.size();
+            return quadPEGLMesh;
         }
 
         // ----------------------------------------------------------------
         // 3. Draw_Quad_2D (ОСНОВНАЯ ФУНКЦИЯ ОТРИСОВКИ)
         // ----------------------------------------------------------------
-        void Draw_Quad_2D(const UIQuad& quad, const ShaderProgram& shader, const glm::mat4& orthoMatrix) {
+        void PEGLDraw_Quad_2D(const PEGLUIQuad& quad, const PEGLShaderProgram& shader, const glm::mat4& orthoMatrix) {
             if (quad.mesh.VAO == 0 || shader.programID == 0) return;
 
             glUseProgram(shader.programID);
@@ -707,38 +708,38 @@ namespace gnu {
         // ----------------------------------------------------------------
         // 4. Draw_Panel 
         // ----------------------------------------------------------------
-        void Draw_Panel(const Panel& panel, const ShaderProgram& uiShader, const glm::mat4& orthoMatrix) {
-            UIQuad tempQuad = panel;
+        void PEGLDraw_Panel(const PEGLPanel& panel, const PEGLShaderProgram& uiShader, const glm::mat4& orthoMatrix) {
+            PEGLUIQuad tempQuad = panel;
             tempQuad.mesh.textureID = 0;
-            Draw_Quad_2D(tempQuad, uiShader, orthoMatrix);
+            PEGLDraw_Quad_2D(tempQuad, uiShader, orthoMatrix);
         }
 
 
         // ----------------------------------------------------------------
         // 5. Draw_Image
         // ----------------------------------------------------------------
-        void Draw_Image(const Image& image, const ShaderProgram& uiShader, const glm::mat4& orthoMatrix) {
+        void PEGLDraw_Image(const PEGLImage& image, const PEGLShaderProgram& uiShader, const glm::mat4& orthoMatrix) {
             if (image.textureID == 0) return;
 
-            UIQuad tempQuad = image;
+            PEGLUIQuad tempQuad = image;
             tempQuad.mesh.textureID = image.textureID;
             tempQuad.color = glm::vec3(1.0f, 1.0f, 1.0f);
 
-            Draw_Quad_2D(tempQuad, uiShader, orthoMatrix);
+            PEGLDraw_Quad_2D(tempQuad, uiShader, orthoMatrix);
         }
 
 
         // ----------------------------------------------------------------
         // 6. print_string_get_width (Ширина текста)
         // ----------------------------------------------------------------
-        float print_string_get_width(const char* text, float scale_x) {
+        float PEGLprint_string_get_width(const char* text, float scale_x) {
             return stb_easy_font_width((char*)text) * scale_x;
         }
 
         // ----------------------------------------------------------------
         // 7. print_string (Отрисовка текста - Core Profile FIX)
         // ----------------------------------------------------------------
-        void print_string(float x, float y, const char* text, float r, float g, float b,
+        void PEGLprint_string(float x, float y, const char* text, float r, float g, float b,
             float scale_x, bool flip_y)
         {
             // Буфер для квадов (4 вершины * 4 float * 4 байта)
@@ -831,15 +832,15 @@ namespace gnu {
         // ----------------------------------------------------------------
         // 8. Draw_Button (Реализация)
         // ----------------------------------------------------------------
-        void Draw_Button(const Button& button, const ShaderProgram& uiShader, const ShaderProgram& textShader, const glm::mat4& orthoMatrix) {
-            UIQuad buttonQuad = button;
+        void PEGLDraw_Button(const PEGLButton& button, const PEGLShaderProgram& uiShader, const PEGLShaderProgram& textShader, const glm::mat4& orthoMatrix) {
+            PEGLUIQuad buttonQuad = button;
             if (button.isHovered) {
                 buttonQuad.color = glm::vec3(0.5f, 0.5f, 0.5f);
             }
             else {
                 buttonQuad.color = button.color;
             }
-            Draw_Quad_2D(buttonQuad, uiShader, orthoMatrix);
+            PEGLDraw_Quad_2D(buttonQuad, uiShader, orthoMatrix);
 
             glUseProgram(textShader.programID);
             GLint orthoLoc = glGetUniformLocation(textShader.programID, "orthoMatrix");
@@ -849,10 +850,10 @@ namespace gnu {
             if (colorLoc != -1) glUniform3f(colorLoc, button.textColor.x, button.textColor.y, button.textColor.z);
 
             float textY = button.position.y + button.size.y / 2.0f - 8.0f;
-            float textWidth = print_string_get_width(button.text.c_str(), 1.0f);
+            float textWidth = PEGLprint_string_get_width(button.text.c_str(), 1.0f);
             float textX = button.position.x + (button.size.x - textWidth) / 2.0f;
 
-            print_string(textX, textY, button.text.c_str(),
+            PEGLprint_string(textX, textY, button.text.c_str(),
                 button.textColor.x, button.textColor.y, button.textColor.z,
                 1.0f, false);
 
@@ -863,23 +864,23 @@ namespace gnu {
         // ----------------------------------------------------------------
         // 9. Draw_Checkbox (Реализация)
         // ----------------------------------------------------------------
-        void Draw_Checkbox(const Checkbox& checkbox, const ShaderProgram& uiShader, const ShaderProgram& textShader, const glm::mat4& orthoMatrix) {
-            UIQuad boxQuad;
+        void PEGLDraw_Checkbox(const PEGLCheckbox& checkbox, const PEGLShaderProgram& uiShader, const PEGLShaderProgram& textShader, const glm::mat4& orthoMatrix) {
+            PEGLUIQuad boxQuad;
             boxQuad.mesh = checkbox.mesh;
             boxQuad.position = glm::vec2(checkbox.position.x, checkbox.position.y + (checkbox.size.y - checkbox.boxSize.y) / 2.0f);
             boxQuad.size = checkbox.boxSize;
             boxQuad.color = glm::vec3(0.1f, 0.1f, 0.1f);
             boxQuad.layer = checkbox.layer;
-            Draw_Quad_2D(boxQuad, uiShader, orthoMatrix);
+            PEGLDraw_Quad_2D(boxQuad, uiShader, orthoMatrix);
 
             if (checkbox.isChecked) {
-                UIQuad innerQuad = boxQuad;
+                PEGLUIQuad innerQuad = boxQuad;
                 float padding = 4.0f;
                 innerQuad.position += padding;
                 innerQuad.size -= 2 * padding;
                 innerQuad.color = glm::vec3(0.0f, 0.8f, 0.0f);
                 innerQuad.layer += 1.0f;
-                Draw_Quad_2D(innerQuad, uiShader, orthoMatrix);
+                PEGLDraw_Quad_2D(innerQuad, uiShader, orthoMatrix);
             }
 
             glUseProgram(textShader.programID);
@@ -895,7 +896,7 @@ namespace gnu {
             float textY = checkbox.position.y + checkbox.size.y / 2.0f - 8.0f;
             float textX = checkbox.position.x + checkbox.boxSize.x + 10.0f;
 
-            print_string(textX, textY, checkbox.text.c_str(),
+            PEGLprint_string(textX, textY, checkbox.text.c_str(),
                 textColor.x, textColor.y, textColor.z,
                 1.0f, false);
 
@@ -905,13 +906,13 @@ namespace gnu {
         // ----------------------------------------------------------------
         // 10. Draw_InputField (Реализация)
         // ----------------------------------------------------------------
-        void Draw_InputField(const InputField& input, const ShaderProgram& uiShader, const ShaderProgram& textShader, const glm::mat4& orthoMatrix) {
-            UIQuad inputQuad = input;
+        void PEGLDraw_InputField(const PEGLInputField& input, const PEGLShaderProgram& uiShader, const PEGLShaderProgram& textShader, const glm::mat4& orthoMatrix) {
+            PEGLUIQuad inputQuad = input;
             inputQuad.color = glm::vec3(0.9f, 0.9f, 0.9f);
             if (input.isActive) {
                 inputQuad.color = glm::vec3(0.7f, 0.8f, 0.9f);
             }
-            Draw_Quad_2D(inputQuad, uiShader, orthoMatrix);
+            PEGLDraw_Quad_2D(inputQuad, uiShader, orthoMatrix);
 
             glUseProgram(textShader.programID);
 
@@ -943,7 +944,7 @@ namespace gnu {
                 final_text += "|";
             }
 
-            print_string(textX, textY, final_text.c_str(),
+            PEGLprint_string(textX, textY, final_text.c_str(),
                 text_color.x, text_color.y, text_color.z,
                 1.0f, false);
 
@@ -954,7 +955,7 @@ namespace gnu {
         // ----------------------------------------------------------------
         // 11. is_point_in_quad (Обработка кликов)
         // ----------------------------------------------------------------
-        bool is_point_in_quad(float x, float y, const UIQuad& quad) {
+        bool PEGLis_point_in_quad(float x, float y, const PEGLUIQuad& quad) {
             return x >= quad.position.x && x <= (quad.position.x + quad.size.x) &&
                 y >= quad.position.y && y <= (quad.position.y + quad.size.y);
         }
