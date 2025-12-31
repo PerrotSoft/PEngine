@@ -25,11 +25,11 @@
 #include <tiny_obj_loader.h> 
 #include <stb_easy_font.h> 
 #ifdef _WIN32
-#define SHADERS_BASE_PATH "PEngen\\shaders\\"
-#define BASE_PATH_ICON_PE "PEngen\\data\\icon.png"
+#define SHADERS_BASE_PATH "PEngine\\shaders\\"
+#define BASE_PATH_ICON_PE "PEngine\\data\\icon.png"
 #else
-#define SHADERS_BASE_PATH "PEngen/shaders/"
-#define BASE_PATH_ICON_PE "PEngen/data/icon.png"
+#define SHADERS_BASE_PATH "PEngine/shaders/"
+#define BASE_PATH_ICON_PE "PEngine/data/icon.png"
 #endif
 namespace gnu {
     struct ImageData {
@@ -177,7 +177,7 @@ namespace gnu {
     PEGLShaderProgram* PEGLAudo_Compile_and_Link_Shader() {
         PEGLShaderProgram modelShader = PEGLCompile_and_Link_Shader("simple.vert", "simple.frag");
 
-        PEGLShaderProgram uiShader = PEGLCompile_and_Link_Shader("simple.vert", "simple.frag");
+        PEGLShaderProgram uiShader = PEGLCompile_and_Link_Shader("ui.vert", "ui.frag");
 
         PEGLShaderProgram textShader = PEGLCompile_and_Link_Shader("text.vert", "text.frag");
 	    return new PEGLShaderProgram[3]{ modelShader, uiShader, textShader };
@@ -280,32 +280,28 @@ namespace gnu {
         glBindTexture(GL_TEXTURE_2D, 0);
         return textureID;
     }
-    void PEGLPrepare_Mesh_For_GPU(PEGLMesh& PEGLMesh,
-        const std::vector<PEGLVertex>& vertices,
-        const std::vector<uint32_t>& indices)
-    {
-        PEGLMesh.delete_gpu_resources();
+    void PEGLPrepare_Mesh_For_GPU(PEGLMesh& mesh, const std::vector<PEGLVertex>& vertices, const std::vector<uint32_t>& indices) {
+        glGenVertexArrays(1, &mesh.VAO);
+        glGenBuffers(1, &mesh.VBO);
+        glGenBuffers(1, &mesh.EBO);
 
-        glGenVertexArrays(1, &PEGLMesh.VAO);
-        glGenBuffers(1, &PEGLMesh.VBO);
-        glGenBuffers(1, &PEGLMesh.EBO);
-
-        glBindVertexArray(PEGLMesh.VAO);
-
-        glBindBuffer(GL_ARRAY_BUFFER, PEGLMesh.VBO);
+        glBindVertexArray(mesh.VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(PEGLVertex), vertices.data(), GL_STATIC_DRAW);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, PEGLMesh.EBO);
+
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, position));
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)0);
         glEnableVertexAttribArray(1);
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, normal));
         glEnableVertexAttribArray(2);
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, texCoords));
+        glEnableVertexAttribArray(3);
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, tangent));
 
+        mesh.indexCount = (uint32_t)indices.size();
         glBindVertexArray(0);
-
-        PEGLMesh.indexCount = (uint32_t)indices.size();
     }
 
     PEGLModel PEGLLoad_Model_From_File_OBJ(const std::string& filePath, const std::string& baseDir) {
@@ -317,26 +313,14 @@ namespace gnu {
 
         bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filePath.c_str(), baseDir.c_str());
 
-        if (!warn.empty()) {
-            std::cout << "tinyobjloader WARNING: " << warn << std::endl;
-		    PElogger(("tinyobjloader WARNING: " + warn).c_str());
-        }
-        if (!err.empty()) {
-            throw std::runtime_error("tinyobjloader ERROR: " + err);
-		    PElogger(("tinyobjloader ERROR: " + err).c_str());
-        }
-        if (!ret) {
-            throw std::runtime_error("Failed to load/parse OBJ file: " + filePath);
-		    PElogger(("Failed to load/parse OBJ file: " + filePath).c_str());
-        }
+        if (!warn.empty()) PElogger(("tinyobjloader WARNING: " + warn).c_str());
+        if (!err.empty()) throw std::runtime_error("tinyobjloader ERROR: " + err);
+        if (!ret) throw std::runtime_error("Failed to load/parse OBJ file: " + filePath);
 
-        std::map<tinyobj::index_t, uint32_t, PEGLtinyobj_index_cmp> unique_indices;
-        std::vector<PEGLVertex> vertices;
-        std::vector<uint32_t> indices;
         for (const auto& shape : shapes) {
-            unique_indices.clear();
-            vertices.clear();
-            indices.clear();
+            std::map<tinyobj::index_t, uint32_t, PEGLtinyobj_index_cmp> unique_indices;
+            std::vector<PEGLVertex> vertices;
+            std::vector<uint32_t> indices;
 
             for (const auto& index : shape.mesh.indices) {
                 if (unique_indices.count(index) == 0) {
@@ -360,19 +344,39 @@ namespace gnu {
                         };
                     }
 
-                    uint32_t current_index = (uint32_t)vertices.size();
-                    unique_indices[index] = current_index;
-                    indices.push_back(current_index);
+                    unique_indices[index] = (uint32_t)vertices.size();
+                    indices.push_back((uint32_t)vertices.size());
                     vertices.push_back(vertex);
-
                 }
                 else indices.push_back(unique_indices[index]);
             }
-            PEGLMesh PEGLMesh;
-            PEGLPrepare_Mesh_For_GPU(PEGLMesh, vertices, indices);
-            model.meshes.push_back(std::move(PEGLMesh));
-        }
 
+            for (size_t i = 0; i < indices.size(); i += 3) {
+                PEGLVertex& v0 = vertices[indices[i]];
+                PEGLVertex& v1 = vertices[indices[i + 1]];
+                PEGLVertex& v2 = vertices[indices[i + 2]];
+
+                glm::vec3 edge1 = v1.position - v0.position;
+                glm::vec3 edge2 = v2.position - v0.position;
+                glm::vec2 deltaUV1 = v1.texCoords - v0.texCoords;
+                glm::vec2 deltaUV2 = v2.texCoords - v0.texCoords;
+
+                float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+                glm::vec3 tangent;
+                tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+                tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+                tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+
+                v0.tangent += tangent;
+                v1.tangent += tangent;
+                v2.tangent += tangent;
+            }
+            for (auto& v : vertices) v.tangent = glm::normalize(v.tangent);
+
+            PEGLMesh mesh;
+            PEGLPrepare_Mesh_For_GPU(mesh, vertices, indices);
+            model.meshes.push_back(std::move(mesh));
+        }
         return model;
     }
 
@@ -431,160 +435,84 @@ namespace gnu {
         if (a.normal_index != b.normal_index) return a.normal_index < b.normal_index;
         return a.texcoord_index < b.texcoord_index;
     }
-    void PEGLDraw_Mesh(const PEGLMesh& PEGLMesh, const PEGLShaderProgram& shader, const glm::mat4& viewProjection) {
-        if (PEGLMesh.VAO == 0) return;
+    void PEGLDraw_Mesh(const PEGLMesh& mesh, const PEGLShaderProgram& shader,
+        const glm::mat4& viewProjection, const glm::mat4& lightSpaceMatrix,
+        const glm::vec3& lightPos, const glm::vec3& viewPos, const glm::mat4& modelMatrix) {
+
+        if (mesh.VAO == 0) return;
 
         glUseProgram(shader.programID);
 
-        glm::mat4 model = PEGLMesh.get_transform();
-        glm::mat4 MVP = viewProjection * model;
-
-        GLint MVPLoc = glGetUniformLocation(shader.programID, "MVP");
-        GLint modelLoc = glGetUniformLocation(shader.programID, "model");
-        GLint viewProjectionLoc = glGetUniformLocation(shader.programID, "viewProjection");
-
-        if (MVPLoc != -1) glUniformMatrix4fv(MVPLoc, 1, GL_FALSE, &MVP[0][0]);
-        if (modelLoc != -1) glUniformMatrix4fv(modelLoc, 1, GL_FALSE, &model[0][0]);
-        if (viewProjectionLoc != -1) glUniformMatrix4fv(viewProjectionLoc, 1, GL_FALSE, &viewProjection[0][0]);
-
-        GLint useTexLoc = glGetUniformLocation(shader.programID, "useTexture");
-
-        if (PEGLMesh.textureID != 0) {
-            if (useTexLoc != -1) glUniform1i(useTexLoc, 1);
-
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, PEGLMesh.textureID);
-
-            GLint samplerLoc = glGetUniformLocation(shader.programID, "ourTextureSampler");
-            if (samplerLoc != -1) glUniform1i(samplerLoc, 0);
-
+        if (mesh.material.hasAlpha) {
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         }
         else {
-            if (useTexLoc != -1) glUniform1i(useTexLoc, 0);
-
-            GLint colorLoc = glGetUniformLocation(shader.programID, "baseColor");
-            if (colorLoc != -1) {
-                glUniform3f(colorLoc, PEGLMesh.baseColor.x, PEGLMesh.baseColor.y, PEGLMesh.baseColor.z);
-            }
+            glDisable(GL_BLEND);
         }
-        glBindVertexArray(PEGLMesh.VAO);
-        glDrawElements(GL_TRIANGLES, PEGLMesh.indexCount, GL_UNSIGNED_INT, 0);
 
+        glUniformMatrix4fv(glGetUniformLocation(shader.programID, "model"), 1, GL_FALSE, &modelMatrix[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(shader.programID, "viewProjection"), 1, GL_FALSE, &viewProjection[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(shader.programID, "lightSpaceMatrix"), 1, GL_FALSE, &lightSpaceMatrix[0][0]);
+        glUniform3f(glGetUniformLocation(shader.programID, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
+        glUniform3f(glGetUniformLocation(shader.programID, "viewPos"), viewPos.x, viewPos.y, viewPos.z);
+
+        auto setTex = [&](const std::string& name, GLuint id, int unit) {
+            glActiveTexture(GL_TEXTURE0 + unit);
+            glBindTexture(GL_TEXTURE_2D, id);
+            glUniform1i(glGetUniformLocation(shader.programID, name.c_str()), unit);
+            glUniform1i(glGetUniformLocation(shader.programID, ("has" + name).c_str()), id != 0);
+            };
+
+        setTex("diffuseMap", mesh.material.diffuseMap, 0);
+        setTex("normalMap", mesh.material.normalMap, 1);
+        setTex("specularMap", mesh.material.specularMap, 2);
+        setTex("shadowMap", mesh.material.shadowMap, 3);
+
+        glUniform3f(glGetUniformLocation(shader.programID, "baseColor"),
+            mesh.material.baseColor.r, mesh.material.baseColor.g, mesh.material.baseColor.b);
+        glUniform1f(glGetUniformLocation(shader.programID, "opacity"), mesh.material.opacity);
+        glBindVertexArray(mesh.VAO);
+        glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        glUseProgram(0);
     }
-
-    void PEGLDraw_Model(const PEGLModel& model, const PEGLShaderProgram& shader, const glm::mat4& viewProjection) {
-        for (const auto& PEGLMesh : model.meshes) {
-            PEGLDraw_Mesh(PEGLMesh, shader, viewProjection);
+    void PEGLDraw_Model(const PEGLModel& model, const PEGLShaderProgram& shader,
+        const glm::mat4& viewProjection, const glm::mat4& lightSpaceMatrix,
+        const glm::vec3& lightPos, const glm::vec3& viewPos,
+        const glm::mat4& modelMatrix) {
+        for (const auto& mesh : model.meshes) {
+            PEGLDraw_Mesh(mesh, shader, viewProjection, lightSpaceMatrix, lightPos, viewPos, modelMatrix);
         }
     }
     namespace UI {
         static GLuint textVAO = 0;
         static GLuint textVBO = 0;
-        static GLuint textEBO = 0;
-        static char textBuffer[90000];
-        static std::vector<uint32_t> textIndices;
-        static constexpr uint32_t MAX_CHARS = sizeof(textBuffer) / 16 / 4;
-        glm::mat4 PEGLUIQuad::get_transform() const {
-            float z_position = -this->layer * 0.001f;
+        static char quad_buffer[100000];
+        static char tri_buffer[200000];
 
+        void PEGLSet_UI_Shader_Uniforms(const PEGLUIQuad& quad, const PEGLShaderProgram& shader, float roundness) {
+            GLint sizeLoc = glGetUniformLocation(shader.programID, "size");
+            GLint roundLoc = glGetUniformLocation(shader.programID, "roundness");
+            if (sizeLoc != -1) glUniform2f(sizeLoc, quad.size.x, quad.size.y);
+            if (roundLoc != -1) glUniform1f(roundLoc, roundness);
+        }
+
+        glm::mat4 PEGLUIQuad::get_transform() const {
+            float z_position = -this->layer * 0.01f;
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, glm::vec3(position.x, position.y, z_position));
             model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
             model = glm::scale(model, glm::vec3(size.x, size.y, 1.0f));
-
             return model;
         }
-        PEGLMesh PEGLCreate_Quad_Mesh() {
-            std::vector<PEGLVertex> vertices = {
-                {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-                {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-                {{1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
-                {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}
-            };
-            std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
 
-            PEGLMesh quadPEGLMesh;
-            glGenVertexArrays(1, &quadPEGLMesh.VAO);
-            glGenBuffers(1, &quadPEGLMesh.VBO);
-            glGenBuffers(1, &quadPEGLMesh.EBO);
-            glBindVertexArray(quadPEGLMesh.VAO);
-            glBindBuffer(GL_ARRAY_BUFFER, quadPEGLMesh.VBO);
-            glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(PEGLVertex), vertices.data(), GL_STATIC_DRAW);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadPEGLMesh.EBO);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
-
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, position));
-            glEnableVertexAttribArray(0);
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, normal));
-            glEnableVertexAttribArray(1);
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, texCoords));
-            glEnableVertexAttribArray(2);
-
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindVertexArray(0);
-
-            quadPEGLMesh.indexCount = indices.size();
-            return quadPEGLMesh;
-        }
-        void PEGLDraw_Quad_2D(const PEGLUIQuad& quad, const PEGLShaderProgram& shader, const glm::mat4& orthoMatrix) {
-            if (quad.mesh.VAO == 0 || shader.programID == 0) return;
-
-            glUseProgram(shader.programID);
-            glm::mat4 model = quad.get_transform();
-            glm::mat4 MVP = orthoMatrix * model;
-
-            GLint MVPLoc = glGetUniformLocation(shader.programID, "MVP");
-            if (MVPLoc != -1) glUniformMatrix4fv(MVPLoc, 1, GL_FALSE, &MVP[0][0]);
-
-            GLint useTexLoc = glGetUniformLocation(shader.programID, "useTexture");
-            GLint colorLoc = glGetUniformLocation(shader.programID, "baseColor");
-
-            if (quad.mesh.textureID != 0) {
-                if (useTexLoc != -1) glUniform1i(useTexLoc, 1);
-                glActiveTexture(GL_TEXTURE0);
-                glBindTexture(GL_TEXTURE_2D, quad.mesh.textureID);
-                GLint samplerLoc = glGetUniformLocation(shader.programID, "ourTextureSampler");
-                if (samplerLoc != -1) glUniform1i(samplerLoc, 0);
-            }
-            else if (useTexLoc != -1) glUniform1i(useTexLoc, 0);
-
-            if (colorLoc != -1) glUniform3f(colorLoc, quad.color.x, quad.color.y, quad.color.z);
-            glBindVertexArray(quad.mesh.VAO);
-            glDrawElements(GL_TRIANGLES, quad.mesh.indexCount, GL_UNSIGNED_INT, 0);
-            glBindTexture(GL_TEXTURE_2D, 0);
-            glBindVertexArray(0);
-            glUseProgram(0);
-        }
-        void PEGLDraw_Panel(const PEGLPanel& panel, const PEGLShaderProgram& uiShader, const glm::mat4& orthoMatrix) {
-            PEGLUIQuad tempQuad = panel;
-            tempQuad.mesh.textureID = 0;
-            PEGLDraw_Quad_2D(tempQuad, uiShader, orthoMatrix);
-        }
-        void PEGLDraw_Image(const PEGLImage& image, const PEGLShaderProgram& uiShader, const glm::mat4& orthoMatrix) {
-            if (image.textureID == 0) return;
-
-            PEGLUIQuad tempQuad = image;
-            tempQuad.mesh.textureID = image.textureID;
-            tempQuad.color = glm::vec3(1.0f, 1.0f, 1.0f);
-
-            PEGLDraw_Quad_2D(tempQuad, uiShader, orthoMatrix);
-        }
         float PEGLprint_string_get_width(const char* text, float scale_x) {
             if (text == nullptr) return 0;
             return stb_easy_font_width((char*)text) * scale_x;
         }
-        void PEGLprint_string(float x, float y, const char* text, float r, float g, float b,
-            float scale_x, bool flip_y)
-        {
-            static char quad_buffer[99999];
-            static char tri_buffer[150000];
 
-            static GLuint textVAO = 0;
-            static GLuint textVBO = 0;
-            const float CHAR_HEIGHT = 16.0f;
+        void PEGLprint_string(float x, float y, const char* text, float r, float g, float b, float scale_x, bool flip_y) {
             if (textVAO == 0) {
                 glGenVertexArrays(1, &textVAO);
                 glGenBuffers(1, &textVBO);
@@ -594,11 +522,10 @@ namespace gnu {
                 glEnableVertexAttribArray(0);
                 glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 16, (void*)0);
                 glBindVertexArray(0);
-                glBindBuffer(GL_ARRAY_BUFFER, 0);
             }
-            int num_quads = stb_easy_font_print(x, y, (char*)text, NULL, quad_buffer, sizeof(quad_buffer));
 
-            if (num_quads == 0) return;
+            int num_quads = stb_easy_font_print(0, 0, (char*)text, NULL, quad_buffer, sizeof(quad_buffer));
+            if (num_quads <= 0) return;
 
             float* src = (float*)quad_buffer;
             float* dst = (float*)tri_buffer;
@@ -606,18 +533,15 @@ namespace gnu {
 
             for (int i = 0; i < num_quads; ++i) {
                 float V1[4], V2[4], V3[4], V4[4];
+                memcpy(V1, src, 16); src += 4;
+                memcpy(V2, src, 16); src += 4;
+                memcpy(V3, src, 16); src += 4;
+                memcpy(V4, src, 16); src += 4;
 
-                V1[0] = *src++; V1[1] = *src++; V1[2] = *src++; V1[3] = *src++;
-                V2[0] = *src++; V2[1] = *src++; V2[2] = *src++; V2[3] = *src++;
-                V3[0] = *src++; V3[1] = *src++; V3[2] = *src++; V3[3] = *src++;
-                V4[0] = *src++; V4[1] = *src++; V4[2] = *src++; V4[3] = *src++;
-
-                float* vertices[] = { V1, V2, V3, V4 };
+                float* v_ptr[] = { V1, V2, V3, V4 };
                 for (int j = 0; j < 4; ++j) {
-                    vertices[j][0] = x + (vertices[j][0] - x) * scale_x;
-                    if (flip_y) {
-                        vertices[j][1] = (2.0f * y - vertices[j][1]) + CHAR_HEIGHT;
-                    }
+                    v_ptr[j][0] = x + v_ptr[j][0] * scale_x;
+                    v_ptr[j][1] = flip_y ? (y - v_ptr[j][1] * scale_x) : (y + v_ptr[j][1] * scale_x);
                 }
 
                 memcpy(dst, V1, 16); dst += 4;
@@ -626,130 +550,153 @@ namespace gnu {
                 memcpy(dst, V1, 16); dst += 4;
                 memcpy(dst, V3, 16); dst += 4;
                 memcpy(dst, V4, 16); dst += 4;
-
                 total_vertices += 6;
             }
+
+            glDisable(GL_DEPTH_TEST);
             glBindBuffer(GL_ARRAY_BUFFER, textVBO);
             glBufferSubData(GL_ARRAY_BUFFER, 0, total_vertices * 16, tri_buffer);
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
             glBindVertexArray(textVAO);
             glDrawArrays(GL_TRIANGLES, 0, total_vertices);
             glBindVertexArray(0);
+            glEnable(GL_DEPTH_TEST);
+        }
+
+        PEGLMesh PEGLCreate_Quad_Mesh() {
+            std::vector<PEGLVertex> vertices = {
+                {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+                {{1.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+                {{1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}},
+                {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}}
+            };
+            std::vector<uint32_t> indices = { 0, 1, 2, 2, 3, 0 };
+
+            PEGLMesh mesh;
+            glGenVertexArrays(1, &mesh.VAO);
+            glGenBuffers(1, &mesh.VBO);
+            glGenBuffers(1, &mesh.EBO);
+
+            glBindVertexArray(mesh.VAO);
+            glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
+            glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(PEGLVertex), vertices.data(), GL_STATIC_DRAW);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t), indices.data(), GL_STATIC_DRAW);
+
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, position));
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(PEGLVertex), (void*)offsetof(PEGLVertex, texCoords));
+            glEnableVertexAttribArray(2);
+
+            mesh.indexCount = (uint32_t)indices.size();
+            glBindVertexArray(0);
+            return mesh;
+        }
+        void PEGLDraw_Quad_2D(const PEGLUIQuad& quad, const PEGLShaderProgram& shader, const glm::mat4& orthoMatrix, float roundness) {
+            if (quad.mesh.VAO == 0 || shader.programID == 0) return;
+
+            glUseProgram(shader.programID);
+
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glDisable(GL_DEPTH_TEST);
+            glm::mat4 model = quad.get_transform();
+            glm::mat4 MVP = orthoMatrix * model;
+            glUniformMatrix4fv(glGetUniformLocation(shader.programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
+            glUniform2f(glGetUniformLocation(shader.programID, "size"), quad.size.x, quad.size.y);
+            glUniform1f(glGetUniformLocation(shader.programID, "roundness"), roundness);
+            glUniform1f(glGetUniformLocation(shader.programID, "opacity"), quad.mesh.material.opacity);
+            glUniform3f(glGetUniformLocation(shader.programID, "baseColor"),
+                quad.mesh.material.baseColor.r,
+                quad.mesh.material.baseColor.g,
+                quad.mesh.material.baseColor.b);
+            GLuint texID = 0;
+            const PEGLImage* img = dynamic_cast<const PEGLImage*>(&quad);
+            if (img && img->textureID != 0) {
+                texID = img->textureID;
+            }
+            else {
+                texID = quad.mesh.material.diffuseMap;
+            }
+            if (texID != 0) {
+                glActiveTexture(GL_TEXTURE0);
+                glBindTexture(GL_TEXTURE_2D, texID);
+                glUniform1i(glGetUniformLocation(shader.programID, "useTexture"), 1);
+                glUniform1i(glGetUniformLocation(shader.programID, "u_texture"), 0);
+            }
+            else {
+                glUniform1i(glGetUniformLocation(shader.programID, "useTexture"), 0);
+            }
+            glBindVertexArray(quad.mesh.VAO);
+            glDrawElements(GL_TRIANGLES, quad.mesh.indexCount, GL_UNSIGNED_INT, 0);
+            glBindVertexArray(0);
+
+            glEnable(GL_DEPTH_TEST);
         }
         void PEGLDraw_Button(const PEGLButton& button, const PEGLShaderProgram& uiShader, const PEGLShaderProgram& textShader, const glm::mat4& orthoMatrix) {
-            PEGLUIQuad buttonQuad = button;
-            if (button.isHovered) {
-                buttonQuad.color = glm::vec3(0.5f, 0.5f, 0.5f);
-            }
-            else {
-                buttonQuad.color = button.color;
-            }
-            PEGLDraw_Quad_2D(buttonQuad, uiShader, orthoMatrix);
+            PEGLButton btnCopy = button;
+            if (button.isHovered) btnCopy.mesh.material.baseColor *= 0.7f;
+
+            PEGLDraw_Quad_2D(btnCopy, uiShader, orthoMatrix, 12.0f);
 
             glUseProgram(textShader.programID);
-            GLint orthoLoc = glGetUniformLocation(textShader.programID, "orthoMatrix");
-            GLint colorLoc = glGetUniformLocation(textShader.programID, "textColor");
+            glUniformMatrix4fv(glGetUniformLocation(textShader.programID, "orthoMatrix"), 1, GL_FALSE, &orthoMatrix[0][0]);
 
-            if (orthoLoc != -1) glUniformMatrix4fv(orthoLoc, 1, GL_FALSE, &orthoMatrix[0][0]);
-            if (colorLoc != -1) glUniform3f(colorLoc, button.textColor.x, button.textColor.y, button.textColor.z);
+            float tw = PEGLprint_string_get_width(button.text.c_str(), 1.0f);
+            float tx = button.position.x + (button.size.x - tw) / 2.0f;
+            float ty = button.position.y + (button.size.y / 2.0f) - 4.0f;
 
-            float textY = button.position.y + button.size.y / 2.0f - 8.0f;
-            float textWidth = PEGLprint_string_get_width(button.text.c_str(), 1.0f);
-            float textX = button.position.x + (button.size.x - textWidth) / 2.0f;
-
-            PEGLprint_string(textX, textY, button.text.c_str(),
-                button.textColor.x, button.textColor.y, button.textColor.z,
-                1.0f, false);
-
-            glUseProgram(0);
+            PEGLprint_string(tx, ty, button.text.c_str(), button.textColor.x, button.textColor.y, button.textColor.z, 1.0f, false);
         }
+
         void PEGLDraw_Checkbox(const PEGLCheckbox& checkbox, const PEGLShaderProgram& uiShader, const PEGLShaderProgram& textShader, const glm::mat4& orthoMatrix) {
-            PEGLUIQuad boxQuad;
-            boxQuad.mesh = checkbox.mesh;
-            boxQuad.position = glm::vec2(checkbox.position.x, checkbox.position.y + (checkbox.size.y - checkbox.boxSize.y) / 2.0f);
-            boxQuad.size = checkbox.boxSize;
-            boxQuad.color = glm::vec3(0.1f, 0.1f, 0.1f);
-            boxQuad.layer = checkbox.layer;
-            PEGLDraw_Quad_2D(boxQuad, uiShader, orthoMatrix);
+            PEGLUIQuad box = checkbox;
+            box.size = checkbox.boxSize;
+            box.mesh.material.baseColor = glm::vec3(0.15f, 0.15f, 0.15f);
+            PEGLDraw_Quad_2D(box, uiShader, orthoMatrix, 4.0f);
 
             if (checkbox.isChecked) {
-                PEGLUIQuad innerQuad = boxQuad;
-                float padding = 4.0f;
-                innerQuad.position += padding;
-                innerQuad.size -= 2 * padding;
-                innerQuad.color = glm::vec3(0.0f, 0.8f, 0.0f);
-                innerQuad.layer += 1.0f;
-                PEGLDraw_Quad_2D(innerQuad, uiShader, orthoMatrix);
+                PEGLUIQuad mark = box;
+                mark.size -= 8.0f;
+                mark.position += 4.0f;
+                mark.mesh.material.baseColor = glm::vec3(0.2f, 0.8f, 0.2f);
+                PEGLDraw_Quad_2D(mark, uiShader, orthoMatrix, 2.0f);
             }
 
             glUseProgram(textShader.programID);
-
-            GLint orthoLoc = glGetUniformLocation(textShader.programID, "orthoMatrix");
-            GLint colorLoc = glGetUniformLocation(textShader.programID, "textColor");
-
-            if (orthoLoc != -1) glUniformMatrix4fv(orthoLoc, 1, GL_FALSE, &orthoMatrix[0][0]);
-
-            glm::vec3 textColor{ 1.0f, 1.0f, 1.0f };
-            if (colorLoc != -1) glUniform3f(colorLoc, textColor.x, textColor.y, textColor.z);
-
-            float textY = checkbox.position.y + checkbox.size.y / 2.0f - 8.0f;
-            float textX = checkbox.position.x + checkbox.boxSize.x + 10.0f;
-
-            PEGLprint_string(textX, textY, checkbox.text.c_str(),
-                textColor.x, textColor.y, textColor.z,
-                1.0f, false);
-
-            glUseProgram(0);
+            glUniformMatrix4fv(glGetUniformLocation(textShader.programID, "orthoMatrix"), 1, GL_FALSE, &orthoMatrix[0][0]);
+            PEGLprint_string(checkbox.position.x + checkbox.boxSize.x + 10.0f, checkbox.position.y + (checkbox.boxSize.y / 2) - 8.0f,
+                checkbox.text.c_str(), 1.0f, 1.0f, 1.0f, 1.0f, false);
         }
+
         void PEGLDraw_InputField(const PEGLInputField& input, const PEGLShaderProgram& uiShader, const PEGLShaderProgram& textShader, const glm::mat4& orthoMatrix) {
-            PEGLUIQuad inputQuad = input;
-            inputQuad.color = glm::vec3(0.9f, 0.9f, 0.9f);
-            if (input.isActive) {
-                inputQuad.color = glm::vec3(0.7f, 0.8f, 0.9f);
-            }
-            PEGLDraw_Quad_2D(inputQuad, uiShader, orthoMatrix);
+            PEGLUIQuad quad = input;
+            quad.mesh.material.baseColor = input.isActive ? glm::vec3(0.2f, 0.2f, 0.25f) : glm::vec3(0.1f, 0.1f, 0.1f);
+
+            PEGLDraw_Quad_2D(quad, uiShader, orthoMatrix, 8.0f);
 
             glUseProgram(textShader.programID);
+            glUniformMatrix4fv(glGetUniformLocation(textShader.programID, "orthoMatrix"), 1, GL_FALSE, &orthoMatrix[0][0]);
 
-            GLint orthoLoc = glGetUniformLocation(textShader.programID, "orthoMatrix");
-            GLint colorLoc = glGetUniformLocation(textShader.programID, "textColor");
+            std::string to_render = input.text.empty() ? input.hintText : input.text;
+            glm::vec3 col = input.text.empty() ? glm::vec3(0.5f) : input.textColor;
+            if (input.isActive) to_render += "|";
 
-            if (orthoLoc != -1) glUniformMatrix4fv(orthoLoc, 1, GL_FALSE, &orthoMatrix[0][0]);
-
-            const std::string* display_text;
-            glm::vec3 text_color;
-
-            if (input.text.empty()) {
-                display_text = &input.hintText;
-                text_color = glm::vec3(0.5f, 0.5f, 0.5f);
-            }
-            else {
-                display_text = &input.text;
-                text_color = input.textColor;
-            }
-
-            if (colorLoc != -1) glUniform3f(colorLoc, text_color.x, text_color.y, text_color.z);
-
-            float textX = input.position.x + 5.0f;
-            float textY = input.position.y + input.size.y / 2.0f - 8.0f;
-
-            std::string final_text = *display_text;
-
-            if (input.isActive) {
-                final_text += "|";
-            }
-
-            PEGLprint_string(textX, textY, final_text.c_str(),
-                text_color.x, text_color.y, text_color.z,
-                1.0f, false);
-
-            glUseProgram(0);
+            PEGLprint_string(input.position.x + 10.0f, input.position.y + (input.size.y / 2) - 8.0f,
+                to_render.c_str(), col.x, col.y, col.z, 1.0f, false);
         }
+
+        void PEGLDraw_Panel(const PEGLPanel& panel, const PEGLShaderProgram& uiShader, const glm::mat4& orthoMatrix) {
+            PEGLDraw_Quad_2D(panel, uiShader, orthoMatrix, 15.0f);
+        }
+
+        void PEGLDraw_Image(const PEGLImage& image, const PEGLShaderProgram& uiShader, const glm::mat4& orthoMatrix) {
+            PEGLDraw_Quad_2D(image, uiShader, orthoMatrix, 0.0f);
+        }
+
         bool PEGLis_point_in_quad(float x, float y, const PEGLUIQuad& quad) {
             return x >= quad.position.x && x <= (quad.position.x + quad.size.x) &&
                 y >= quad.position.y && y <= (quad.position.y + quad.size.y);
         }
-
-
     }
 }

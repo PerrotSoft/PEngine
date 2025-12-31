@@ -23,6 +23,20 @@ namespace gnu {
         glm::vec3 position;
         glm::vec3 normal;
         glm::vec2 texCoords;
+        glm::vec3 tangent;
+    };
+
+    struct PEGLMaterial {
+        glm::vec3 baseColor{ 1.0f };
+        float opacity = 1.0f;
+        float shininess = 32.0f;
+
+        GLuint diffuseMap = 0;
+        GLuint normalMap = 0;
+        GLuint specularMap = 0;
+        GLuint shadowMap = 0;
+
+        bool hasAlpha = false;
     };
 
     struct PEGLShaderProgram {
@@ -34,7 +48,7 @@ namespace gnu {
         GLuint VBO = 0;
         GLuint EBO = 0;
         uint32_t indexCount = 0;
-
+        PEGLMaterial material;
         glm::vec3 baseColor{ 1.0f, 1.0f, 1.0f };
         GLuint textureID = 0;
 
@@ -77,14 +91,19 @@ namespace gnu {
     void PEGLPrepare_Mesh_For_GPU(PEGLMesh& mesh, const std::vector<PEGLVertex>& vertices,const std::vector<uint32_t>& indices);
     PEGLModel PEGLLoad_Model_From_File_OBJ(const std::string& filePath, const std::string& baseDir);
     PEGLModel PEGLCreate_Cube_Model();
-    void PEGLDraw_Mesh(const PEGLMesh& mesh, const PEGLShaderProgram& shader, const glm::mat4& viewProjection);
-    void PEGLDraw_Model(const PEGLModel& model, const PEGLShaderProgram& shader, const glm::mat4& viewProjection);
+    void PEGLDraw_Mesh(const PEGLMesh& mesh, const PEGLShaderProgram& shader,
+        const glm::mat4& viewProjection, const glm::mat4& lightSpaceMatrix,
+        const glm::vec3& lightPos, const glm::vec3& viewPos, const glm::mat4& modelMatrix);
+    void PEGLDraw_Model(const PEGLModel& model, const PEGLShaderProgram& shader,
+        const glm::mat4& viewProjection, const glm::mat4& lightSpaceMatrix,
+        const glm::vec3& lightPos, const glm::vec3& viewPos, const glm::mat4& modelMatrix);
     PEGLLightSource PEGLCreate_Light_Source(const glm::vec3& position, const glm::vec3& color, float intensity);
     void PEGLDelete_Model(PEGLModel& model);
     void PEGLDelete_Shader_Program(PEGLShaderProgram& program);
 
     namespace UI {
         struct PEGLUIQuad {
+            virtual ~PEGLUIQuad() = default;
             glm::vec2 position{ 0.0f };
             glm::vec2 size{ 100.0f, 30.0f };
             glm::vec3 color{ 0.7f, 0.7f, 0.7f };

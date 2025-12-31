@@ -4,7 +4,7 @@
 using namespace std;
 void cfg::PEsave(const string& filePath, const string& data)
 {
-	std::ofstream file("PEngen\\cfg\\" + filePath);
+	std::ofstream file("PEngine\\cfg\\" + filePath);
 	if (file.is_open())
 	{
 		file << data;
@@ -13,7 +13,7 @@ void cfg::PEsave(const string& filePath, const string& data)
 }
 string cfg::PEload(const string& filePath)
 {
-	std::ifstream file("PEngen\\cfg\\"+filePath);
+	std::ifstream file("PEngine\\cfg\\"+filePath);
 	string data;
 	if (file.is_open())
 	{

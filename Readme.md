@@ -1,507 +1,118 @@
-# 🚀 Документация Движка GNU OpenGL Engine (PEngen)
+# 🚀 GNU OpenGL Engine (PEngen) Documentation
 
-Привет\! Рад представить тебе полную документацию для **GNU OpenGL Engine**, который я ласково называю **PEngen**\!
+Hello! I'm pleased to present the complete documentation for the **GNU OpenGL Engine**, which I affectionately call **PEngen**!
 
-| Параметр | Значение |
+| Parameter | Value |
 | :--- | :--- |
-| **Имя Движка** | **GNU OpenGL Engine (PEngen)** |
-| **Версия** | **0.0.7a** |
-| **Основа** | C++, OpenGL (GLFW/GLAD), GLM |
-| **Цель Создания** | Этот движок был создан для того, чтобы разработчики могли **быстро и с удовольствием** создавать работающие 3D-сцены, не утопая в рутине настройки OpenGL. PEngen предоставляет готовые инструменты для загрузки моделей, управления камерой (в стиле FPS), освещением, а также включает простой, но функциональный 2D-интерфейс (UI) и кроссплатформенный (почти) фреймворк для ввода и аудио\!
+| **Engine Name** | **GNU OpenGL Engine (PEngen)** |
+| **Version** | **0.0.9a** |
+| **Based** | C++, OpenGL (GLFW/GLAD), GLM |
+| **Purpose** | This engine was created so that developers can **quickly and enjoyably** create working 3D scenes without getting bogged down in the OpenGL configuration nitty-gritty. PEngen provides ready-to-use tools for loading models, controlling the camera (FPS-style), and lighting. It also includes a simple yet powerful 2D UI and a (almost) cross-platform framework for input and audio!
 
-Готовься погрузиться в мир 3D-графики\!
+Get ready to dive into the world of 3D graphics!
 
-<img src="sccren1.jpg" alt="Снимок экрана PEngine Demo" width="800"/>
------
-
-## I. Модуль 3D-Графики и Сцены (`gnu`)
-
-Основные структуры и функции для создания 3D-мира находятся в пространстве имен `gnu`.
-
-### 1\. Основные Структуры
-
-| Структура | Описание | Поля |
-| :--- | :--- | :--- |
-| **`Vertex`** | Единица данных для построения геометрии. | `position (vec3)`, `normal (vec3)`, `texCoords (vec2)`. |
-| **`Mesh`** | Отдельная сетка (кусок геометрии) с трансформациями. | `VAO`, `VBO`, `EBO`, `indexCount`, `baseColor (vec3)`, `textureID`, `position (vec3)`, `rotation (quat)`, `scale (vec3)`. |
-| **`Model`** | Коллекция сеток, представляющая целый объект (например, дом или персонаж). | `meshes (std::vector<Mesh>)`. |
-| **`LightSource`** | Параметры точечного источника света. | `position (vec3)`, `color (vec3)`, `intensity (float)`. |
-| **`ShaderProgram`** | Обертка для ID шейдерной программы OpenGL. | `programID (GLuint)`. |
-
-### 2\. Функции Управления Сценой
-
-#### `GLFWwindow* Init_OpenGL_Window(int width, int height, const char* title)`
-
-| Параметр | Описание |
-| :--- | :--- |
-| `width`, `height` | Ширина и высота окна в пикселях. |
-| `title` | Заголовок окна. |
-| **Возврат** | Указатель на созданное окно GLFW. **Важно:** проверять на `NULL`\! |
-
-**Использование:**
-
-```cpp
-// Создаем окно 1280x720
-const int W = 1280, H = 720;
-GLFWwindow* window = gnu::Init_OpenGL_Window(W, H, "Моя Первая Игра на PEngen!");
-
-if (!window) return -1;
-```
-
-#### `ShaderProgram Compile_and_Link_Shader(const char* vertPath, const char* fragPath)`
-
-| Параметр | Описание |
-| :--- | :--- |
-| `vertPath`, `fragPath` | Пути к файлам вершинного и фрагментного шейдеров. |
-| **Возврат** | Структура `ShaderProgram` с готовым `programID`. |
-
-**Использование:**
-
-```cpp
-// Компилируем шейдеры для 3D моделей
-gnu::ShaderProgram modelShader = gnu::Compile_and_Link_Shader("simple.vert", "simple.frag");
-
-// Если нужно: получить uniform location
-GLint viewPosLoc = glGetUniformLocation(modelShader.programID, "viewPos");
-```
-
-#### `Model Load_Model_From_File_OBJ(const std::string& filePath, const std::string& basePath)`
-
-| Параметр | Описание |
-| :--- | :--- |
-| `filePath` | Путь к файлу `.obj`. |
-| `basePath` | Базовый путь для поиска `.mtl` и текстур (если они находятся отдельно). |
-| **Возврат** | Структура `Model` с загруженными сетками и текстурами. |
-
-**Использование:**
-
-```cpp
-// Загружаем модель "Комната Викинга"
-Model vikingModel = gnu::Load_Model_From_File_OBJ("models/viking_room.obj", "models/");
-
-// Уменьшаем размер модели для сцены
-for (auto& mesh : vikingModel.meshes) {
-    mesh.scale = glm::vec3(0.02f);
-}
-```
-
-#### `GLuint Load_Texture_From_File(const std::string& filePath)`
-
-| Параметр | Описание |
-| :--- | :--- |
-| `filePath` | Путь к файлу изображения (PNG, JPG и т.д.). |
-| **Возврат** | ID текстуры OpenGL (`GLuint`). |
-
-**Использование:**
-
-```cpp
-GLuint customTextureID = gnu::Load_Texture_From_File("textures/viking_room.png");
-
-// Присвоить текстуру модели:
-vikingModel.meshes[0].textureID = customTextureID; 
-```
-
-#### `void Draw_Model(const Model& model, const ShaderProgram& shader, const glm::mat4& viewProjection)`
-
-| Параметр | Описание |
-| :--- | :--- |
-| `model` | Модель для отрисовки. |
-| `shader` | Шейдерная программа, которую нужно использовать. |
-| `viewProjection` | Комбинированная матрица `Проекция * Вид`. |
-
-**Использование (в цикле рендеринга):**
-
-```cpp
-glUseProgram(modelShader.programID);
-// Обновляем uniform-переменные...
-glm::mat4 viewProjection = projection * view;
-gnu::Draw_Model(vikingModel, modelShader, viewProjection);
-glUseProgram(0);
-```
-
-#### `LightSource Create_Light_Source(const glm::vec3& pos, const glm::vec3& color, float intensity)`
-
-| Параметр | Описание |
-| :--- | :--- |
-| `pos` | Позиция источника света в 3D пространстве. |
-| `color` | Цвет света (RGB, 0.0-1.0). |
-| `intensity` | Интенсивность (сила) света. |
-| **Возврат** | Структура `LightSource`. |
-
-**Использование:**
-
-```cpp
-// Создаем яркий белый свет вверху сцены
-LightSource mainLight = gnu::Create_Light_Source(glm::vec3(0.0f, 10.0f, 0.0f), glm::vec3(1.0f), 10.0f);
-
-// В цикле обновляем uniform:
-// glUniform3f(lightPosLoc, mainLight.position.x, ...);
-```
+<img src="sccren1.jpg" alt="PEngine Demo Screenshot" width="800"/>
 
 -----
 
-## II. Модуль Пользовательского Интерфейса (`gnu::UI`)
+## 🚀 1. Core Module (`Engine` and `Scene`)
 
-Этот модуль позволяет легко создавать 2D-элементы, которые всегда отрисовываются поверх 3D-сцены с использованием ортогональной проекции.
+### `PEngine::Vec` Structure (Math)
 
-### 1\. Элементы UI (Наследование от `UIQuad`)
-
-Все элементы наследуют базовые поля `position`, `size`, `color`, `layer`, `rotation`. Координата `position` — это верхний левый угол элемента в пикселях.
-
-| Структура | Описание | Ключевые Поля |
-| :--- | :--- | :--- |
-| **`Panel`** | Простая прямоугольная панель (фон). | Только базовые поля. |
-| **`Image`** | 2D-квад с текстурой. | `textureID`. |
-| **`Button`** | Интерактивная кнопка. | `text`, `textColor`, `isHovered` (устанавливается колбэком мыши). |
-| **`Checkbox`** | Чекбокс с текстом. | `text`, `isChecked` (логическое состояние), `boxSize`. |
-| **`InputField`** | Поле для ввода текста (консоль). | `currentText` (введенный текст), `hintText`, `isActive` (фокус). |
-
-**Использование:**
-
-```cpp
-// Создание кнопки
-Button parrotButton;
-parrotButton.position = glm::vec2(600.0f, 50.0f);
-parrotButton.size = glm::vec2(180.0f, 30.0f);
-parrotButton.text = "Спрятать Попугая";
-parrotButton.color = glm::vec3(0.2f, 0.5f, 0.8f); // Синяя
-```
-
-### 2\. Функции Управления UI
-
-#### `Mesh Create_Quad_Mesh()`
-
-| Параметр | Описание |
-| :--- | :--- |
-| **Возврат** | Структура `Mesh` с геометрией 2D квада (используется как шаблон). |
-
-**Использование:**
-
-```cpp
-Mesh quadMesh = gnu::UI::Create_Quad_Mesh(); 
-
-// Присваиваем геометрию всем UI элементам
-state.parrotButton.mesh = quadMesh;
-state.inputField.mesh = quadMesh;
-// ...
-```
-
-#### `void Draw_Button(const Button& button, ...)` (и другие `Draw_*` функции)
-
-| Параметр | Описание |
-| :--- | :--- |
-| `button` | Экземпляр элемента UI. |
-| `uiShader`, `textShader` | Шейдер для отрисовки квада и шейдер для отрисовки текста. |
-| `orthoMatrix` | Ортогональная матрица проекции (Y=0 сверху). |
-
-**Использование (в цикле рендеринга):**
-
-```cpp
-glm::mat4 orthoMatrix = glm::ortho(0.0f, (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT, 0.0f);
-
-gnu::UI::Draw_Panel(uiBackground, uiShader, orthoMatrix);
-gnu::UI::Draw_Button(state.parrotButton, uiShader, textShader, orthoMatrix);
-```
-
-#### `bool is_point_in_quad(float x, float y, const UIQuad& quad)`
-
-| Параметр | Описание |
-| :--- | :--- |
-| `x`, `y` | Координаты курсора мыши в пикселях. |
-| `quad` | Элемент UI для проверки. |
-| **Возврат** | `true`, если точка находится внутри элемента. |
-
-**Использование (в колбэке мыши):**
-
-```cpp
-void mouse_button_callback(...) {
-    // ...
-    if (is_point_in_quad(state->mouseX, state->mouseY, state->parrotButton)) {
-        state->isParrotVisible = !state->isParrotVisible; // Логика клика
-    }
-}
-```
-
-#### `float print_string(float x, float y, const char* text, float r, float g, float b, float scale, bool bold)`
-
-| Параметр | Описание |
-| :--- | :--- |
-| `x`, `y` | Координаты начала текста в пикселях. |
-| `text` | Текстовая строка. |
-| `r, g, b` | Цвет текста (0.0-1.0). |
-| `scale` | Масштаб текста (например, `1.0f` или `1.5f`). |
-| `bold` | Флаг для жирного начертания. |
-| **Возврат** | Ширина напечатанной строки. |
-
-**Использование (для вывода FPS):**
-
-```cpp
-// Желтый текст, масштаб 1.5, не жирный
-gnu::UI::print_string(10, 10, fpsBuffer, 1.0f, 1.0f, 0.0f, 1.5f, false);
-```
-
------
-
-## III. Модуль Аудио (`Audio::AudioManager`)
-
-Модуль для воспроизведения звуков через статический класс `AudioManager`. **ВНИМАНИЕ:** Реализация основана на Windows Media Control Interface (MCI), поэтому данный модуль работает только под **Windows**\!
-
-### 1\. Функции Управления Аудио
-
-| Функция | Описание |
-| :--- | :--- |
-| `static void PlaySound(const std::string& filePath, int id)` | Воспроизводит звук один раз. Звук занимает ресурсы, пока не будет остановлен или не завершится. |
-| `static void PlayLoopedSound(const std::string& filePath, int id)` | Воспроизводит звук **в цикле** в отдельном потоке. Идеально для фоновой музыки или окружающих звуков. |
-| `static void StopSound(int id)` | Останавливает и **закрывает** (освобождает ресурсы) конкретный звук по его ID. |
-| `static void StopAll()` | Останавливает и закрывает все активные звуки. |
-| `static void SetVolume(float volume, int id)` | Устанавливает громкость для звука. `volume` должен быть в диапазоне от **0.0f** до **1.0f**. |
-| `static void PlaySoundW(const std::wstring& filePath, int id)` | Перегрузка для поддержки путей в виде широких строк (`std::wstring`). |
-
-**Использование (на примере кнопки "Parrot"):**
-
-```cpp
-// ID 2 зарезервирован для цикличного звука
-const int PARROT_SOUND_ID = 2; 
-
-if (state->isParrotVisible) {
-    // Включаем зацикленный звук при показе попугая
-    Audio::AudioManager::PlayLoopedSound("s.wav", PARROT_SOUND_ID); 
-    Audio::AudioManager::SetVolume(0.1f, PARROT_SOUND_ID); // Тихо
-} else {
-    // Останавливаем, когда попугай скрыт
-    Audio::AudioManager::StopSound(PARROT_SOUND_ID);
-}
-```
-
------
-
-## IV. Системные и Вспомогательные Модули
-
-### 1\. Модуль Симуляции Ввода (`Input::InputManager`)
-
-Статический класс для отправки низкоуровневых команд ввода в систему (полезно для автоматизации или тестирования). **ВНИМАНИЕ:** Работает через Windows API\!
-
-| Функция | Тип Ввода | Описание |
-| :--- | :--- | :--- |
-| `static void KeyPress(WORD vkCode)` | Клавиатура | Нажимает и сразу отпускает клавишу. Используйте коды виртуальных клавиш (например, `VK_SPACE`, `'A'`). |
-| `static void KeyDown(WORD vkCode)` | Клавиатура | Только нажатие (удерживание). |
-| `static void KeyUp(WORD vkCode)` | Клавиатура | Только отпускание. |
-| `static void MouseClickL()` | Мышь | Симуляция клика левой кнопкой. |
-| `static void MouseClickR()` | Мышь | Симуляция клика правой кнопкой. |
-| `static void MouseMoveAbsolute(int x, int y)` | Мышь | Перемещает курсор в абсолютные координаты (диапазон `0..65535` по каждой оси). |
-| `static void MouseScroll(int delta)` | Мышь | Симуляция прокрутки колесом (`+1` для вверх, `-1` для вниз). |
-
-**Использование (для симуляции прыжка):**
-
-```cpp
-// Симулируем нажатие пробела
-Input::InputManager::KeyPress(VK_SPACE); 
-```
-
-### 2\. Модуль Конфигурации (`cfg`)
-
-Простой класс для работы с файлами настроек или логами.
-
-| Функция | Описание |
-| :--- | :--- |
-| `string load(const string& filePath)` | Загружает весь контент текстового файла в строку. |
-| `void save(const string& filePath, const string& data)` | Сохраняет строку в файл. |
-
-**Использование:**
-
-```cpp
-cfg config;
-std::string settings = config.load("config.txt");
-
-// Изменяем настройки и сохраняем
-config.save("config.txt", updatedSettings); 
-```
-
-### 3\. Модуль Логирования (`log.h`)
-
-Простейшие функции для вывода в консоль (или в лог-файл, если реализовано в `log.cpp`).
-
-| Функция | Описание |
-| :--- | :--- |
-| `void logger(const char* message)` | Вывод сообщения. |
-| `void logger_up(const char* message)` | Вывод сообщения (возможно, с другим уровнем/форматом). |
-
-**Использование:**
-
-```cpp
-logger("DEBUG: Инициализация успешно завершена.");
-logger_up("ERROR: Не удалось загрузить текстуру!");
-```
-## 4. Система Сцен и Объектов (`PEngen`)
-
-Модуль `PEngen` расширяет базовый функционал `gnu`, вводя понятие **Сцены** и **Игрового Объекта**. Это позволяет управлять множеством сущностей как единым целым и выстраивать иерархии «родитель-потомок».
-
-### 1. Основные структуры
-
-| Структура | Описание | Основные поля |
+| Structure | Fields | Description |
 | --- | --- | --- |
-| **`PESGameObject`** | Базовая сущность сцены. Может быть 3D-моделью или элементом UI. | `id`, `name`, `position`, `rotation`, `scale`, `parent_name`, `state`. |
-| **`PESScene`** | Контейнер, хранящий список всех объектов текущего уровня. | `scene_name`, `Scene_objects` (вектор указателей), `next_object_id`. |
+| **`Vec2`** | `float x, y` | Coordinates for 2D/UI. |
+| **`Vec3`** | `float x, y, z` | Coordinates for 3D space and physics. |
 
-### 2. Состояния объекта (`state`)
+### `PEngine::Engine` Class
 
-Поле `state` определяет, чем именно является объект и как он будет отрисован:
+The central class that manages the window and the application lifecycle.
 
-* **0**: Неактивен (игнорируется рендером).
-* **1-2**: 3D-объект (использует поле `model`).
-* **3-7**: UI-элементы (Кнопка, Чекбокс, Поле ввода, Панель, Изображение соответственно).
+* **`Engine(int width, int height, const std::string& title)`**: Initializes GLFW, creates a window, and sets up the context.
+* **`bool ShouldClose()`**: Checks if the user has closed the window.
+* **`void Update()`**: Clears buffers, updates input, and changes frames. Call at the end of each cycle.
+* **`Scene* GetScene()`**: Provides access to world objects.
+* **`~Engine()`**: **(Delete)** Closes the window and frees system resources. ### The `PEngine::Scene` class and the `Object` struct
 
-### 3. Функции API
+A scene object (`Object`) is a container for rendering.
 
-#### `PESGameObject& PESAddObject(PESGameObject& object_template)`
+**`Object` fields:**
 
-Добавляет объект в текущую активную сцену. Автоматически присваивает уникальный `id`.
+* `long long id`: Unique ID.
+* `std::string name`: Name to search for.
+* `Vec3 pos, size, rotator`: Transformation.
+* `uint8_t state`: Type (1: Cube, 2: Model, 3: Button, 4: Checkbox, 5: Input, 6: Panel, 7: Image).
+* `PEGLMaterial material`: Colors and textures.
+* `PEGLModel model`: 3D mesh data.
+* `void (*on_click)()`: Click event function.
 
-* **Использование:** `auto& myObj = PEngen::PESAddObject(templateObj);`
+**`Scene` Functions:**
 
-#### `PESGameObject& PESSearchObject(const char* name)`
-
-Ищет объект в сцене по его имени. Если объект не найден, выбрасывает исключение.
-
-#### `void PESRemoveObject(const char* name)`
-
-Удаляет объект из списка объектов сцены по его имени.
-
-### 4. Рендеринг и Трансформации
-
-Система использует двухэтапный рендеринг:
-
-1. **`render_pre()`**: Подготовка. На этом этапе рассчитывается иерархия. Если у объекта указан `parent_name`, его финальная позиция и ротация будут рассчитаны относительно родителя. Результат собирается в очередь `PESRObject`.
-2. **`render()`**: Финализация. Проходит по подготовленной очереди и вызывает соответствующие функции отрисовки `gnu::Draw_Model` или `gnu::UI::PEGLDraw_*` в зависимости от состояния объекта.
-
-**Пример создания иерархии:**
-
-```cpp
-PESGameObject parent;
-parent.name = "MainBase";
-PESAddObject(parent);
-
-PESGameObject child;
-child.name = "Turret";
-child.parent_name = "MainBase"; // Теперь при движении базы турель будет следовать за ней
-PESAddObject(child);
-
-```
-## 5. Пространство имен `PEngen::Vec`
-
-Внутренняя библиотека математических примитивов.
-
-| Структура | Описание | Поля |
-| --- | --- | --- |
-| **Vec2** | 2D Вектор (UI, координаты экрана) | `float x, y` |
-| **Vec3** | 3D Вектор (Позиция, цвет, вращение) | `float x, y, z` |
-| **Mat4** | Матрица 4x4 | `float data[16]` (по умолчанию Identity) |
+* **`AddObject(const Object& object)`**: Adds an object to the world.
+* **`SearchObject(const char* name)`**: Searches for an object by name.
+* **`GetObjectById(long long id)`**: Searches for an object by ID.
+* **`SetCamera(Vec3 position, float yaw, float pitch, float roll)`**: Controls the player's view.
+* **`UpdateUI(GLFWwindow* window)`**: Handles interactions in the UI.
+* **`Render()`**: Draws all scene contents.
 
 ---
 
-## 6. Пространство имен `PEngen::Scene`
+## ⚛️ 2. Physics Module (`Physics.h`, `Physics_Base.h`)
 
-### Структура `Object`
+Physics runs in parallel with the scene, updating the coordinates of visual objects.
 
-Основной кирпичик сцены. Поведение объекта зависит от его `state`.
+### `PhysicsObject` structure
 
-* **Идентификация:** `unsigned int id`, `std::string name`.
-* **Трансформации:** `Vec3 pos`, `Vec3 rotator`, `Vec3 size`.
-* **Связи:** `std::string parent_name` (поддержка иерархии).
-* **Состояния (`state`):**
-* `1`: 3D объект (цвет).
-* `2`: 3D объект (текстура).
-* `3`: Кнопка (Button).
-* `4`: Чекбокс (Checkbox).
-* `5`: Поле ввода (InputField).
-* `7`: Изображение (Image).
-* `8`: Спрайт 2D (Object2D).
+* `long long linked_object_id`: **Link!** ID of a visual object from `Scene`.
+* `Vec3 pos, size, velocity, speed_gravity`: Movement and size parameters.
+* `float mass`: Object mass.
+* `uint8_t collision_type`: `0` - none, `1` - trigger, `2` - rigid body (bounce).
+* `int friction`: Friction force.
+* `void (*on_collision)(PhysicsObject& other)`: Collision event.
 
+### `PEngine::Physics_Base` class
 
-* **UI Данные:** Содержит структуры `button_ui`, `checkbox_ui` и т.д. из пространства `gnu::UI`.
-* **События:** `void (*on_click)()` — указатель на функцию, вызываемую при клике.
-
-### Структура `Camera`
-
-Реализует систему обзора в стиле FPS.
-
-* `pos`, `front`, `up`, `right`: Векторы положения и ориентации.
-* `yaw`, `pitch`, `roll`: Углы Эйлера (в градусах).
+* **`Physics_Base(Scene* scene)`**: Constructor that links physics to the scene.
+* **`AddPhysicsObject(const PhysicsObject& physics_object)`**: Registers a body in the simulation.
+* **`SearchPhysicsObject(const char* name)`**: Finds a body by name.
+* **`UpdatePhysics(float deltaTime)`**: Performs collision and displacement calculations.
 
 ---
 
-## 7. Методы класса `Scene`
+## 🗑️ 3. Cleanup and Delete Module (`OpenGL.h`)
 
-#### `Object& AddObject(const Object& object)`
+Functions for freeing up GPU memory.
 
-Добавляет копию объекта в сцену.
-
-* **Возвращает:** Ссылку на объект внутри массива сцены.
-* **Автоматизация:** Присваивает уникальный `next_object_id`.
-
-#### `Object& SearchObject(const char* name)`
-
-Ищет объект по имени.
-
-* **Исключения:** Выбрасывает `std::runtime_error`, если имя не найдено.
-
-#### `void SetCamera(Vec3 position, float yaw, float pitch, float roll)`
-
-Централизованный метод обновления векторов камеры.
-
-* Рассчитывает `front`, `right` и `up` на основе углов Эйлера.
-* Использует тригонометрию для создания направления взгляда.
-
-#### `void UpdateUI(GLFWwindow* window)`
-
-Обрабатывает взаимодействие пользователя с интерфейсом.
-
-* **Кнопки:** Анимация `visual_scale` и вызов `on_click`.
-* **Чекбоксы:** Переключение `isChecked` при клике.
-* **Поля ввода:** Установка `isFocused`, обработка `BACKSPACE` и ввод символов.
-
-#### `void Render()`
-
-Главный цикл отрисовки кадра.
-
-1. Устанавливает `glEnable(GL_DEPTH_TEST)`.
-2. Создает матрицы `view` и `projection`.
-3. Отрисовывает 3D объекты (состояния 1-2) с учетом иерархии родителей.
-4. Отключает тест глубины для отрисовки UI (состояния 3-7) поверх мира.
+* **`void PEGLDelete_Model(PEGLModel& model)`**: Deletes meshes, VAOs, VBOs, and EBOs. Call when the 3D model is no longer needed.
+* **`void PEGLDelete_Shader_Program(PEGLShaderProgram& program)`**: Deletes the compiled shader.
+* **`void PEAStopAll()`**: (from Audio) Stops all sounds and closes their handles.
 
 ---
 
-## 8. Класс `Engine`
+## 🔊 4. Audio Module (`Audio.h`)
 
-Ядро управления приложением.
+`AudioManager` class (all functions are static).
 
-* **Конструктор `Engine(int w, int h, string title)**`: Инициализирует окно через GLFW, настраивает GLAD и загружает стандартные шейдеры из `SHADERS_BASE_PATH`.
-* **`bool ShouldClose()`**: Возвращает `true`, если пользователь закрыл окно.
-* **`void Update()`**:
-* `glfwSwapBuffers`: Выводит кадр на экран.
-* `glfwPollEvents`: Опрашивает ввод.
-* `glClear`: Очищает буферы цвета и глубины.
-* Вызывает `Scene::Render()`.
-
-
+* **`PEAPlaySound(const std::string& filePath, int id)`**: Single playback.
+* **`PEAPlayLoopedSound(const std::string& filePath, int id)`**: Background music (loop).
+* **`PEAStopSound(int id)`**: Stop a specific sound by ID. * **`PEASetVolume(float volume, int id)`**: Set the volume (0.0 - 1.0).
 
 ---
 
-## 9. Модуль `gnu::UI` (из OpenGL.cpp)
+## ⌨️ 5. Input Module (`Input.h`)
 
-Низкоуровневые функции отрисовки.
+`InputManager` class for emulation and management.
 
-| Функция | Назначение |
-| --- | --- |
-| **PEGLDraw_Button** | Рисует прямоугольник с текстом по центру. |
-| **PEGLDraw_Checkbox** | Рисует рамку и закрашенный квадрат внутри, если `isChecked == true`. |
-| **PEGLDraw_InputField** | Отрисовывает текст или `hintText` и добавляет курсор ` |
-| **PEGLis_point_in_quad** | Математическая проверка: попал ли курсор мыши в область элемента. |
+* **`PEIKeyPress(WORD vkCode)`**: Press and release a key.
+* **`PEIKeyDown(WORD vkCode)`**: Hold down a key.
+* **`PEIKeyUp(WORD vkCode)`**: Release a key.
+* **`PEIMouseClickL()` / `PEIMouseClickR()**`: Mouse clicks.
+* **`PEIMouseMoveAbsolute(int x, int y)`**: Move the cursor to a point on the screen.
 
 ---
 
-## 📝 Памятка по координатам
+## 💾 6. Config and Log Module (`cfg.h`, `log.h`)
 
-* **3D Координаты**: Правая система. `Y` — вверх, `-Z` — вперед.
-* **UI Координаты**: Пиксельные. `{0, 0}` — левый верхний угол экрана.
-* **Дальность**: Настраивается в `Render()` через параметр `far` в `glm::perspective` (стандарт — `100.0f`).
+* **`void PEsave(const string& filePath, const string& data)`**: Saves text to the `PEngine\cfg\` folder.
+* **`string PEload(const string& filePath)`**: Loads text from a file.
+* **`void PElogger(const char* message)`**: Logs an important event to `log.txt`

@@ -6,7 +6,7 @@ using namespace std::chrono;
 
 void PElogger(const char* message)
 {
-	std::ofstream logFile("PEngen\\log\\log.txt", std::ios::app);
+	std::ofstream logFile("PEngine\\log\\log.txt", std::ios::app);
 	if (logFile.is_open())
 	{
 		auto now = system_clock::now();
@@ -20,7 +20,7 @@ void PElogger(const char* message)
 }
 void PElogger_up(const char* message)
 {
-	std::ofstream logFile("PEngen\\log\\log_update.txt", std::ios::app);
+	std::ofstream logFile("PEngine\\log\\log_update.txt", std::ios::app);
 	if (logFile.is_open())
 	{
 		auto now = system_clock::now();
