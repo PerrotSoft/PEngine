@@ -1,0 +1,7 @@
+{
+    "versions": [
+        { "id": "v0.0.9a", "name": "v0.0.9a Stable", "url": "downloads/engine_v009.zip" },
+        { "id": "v0.0.8a", "name": "v0.0.8a Stable", "url": "downloads/engine_v008.zip" },
+        { "id": "v0.0.7a", "name": "v0.0.7a Stable", "url": "downloads/engine_v007.zip" }
+    ]
+}

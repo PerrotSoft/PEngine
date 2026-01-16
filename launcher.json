@@ -1,0 +1,37 @@
+{
+    "default_lang": "ru",
+    "languages": {
+        "en": {
+            "nav_home": "Home",
+            "nav_install": "Install",
+            "nav_docs": "Docs",
+            "hero_title": "Create Without Limits",
+            "hero_desc": "Powerful game engine.",
+            "f1_t": "Speed",
+            "f1_d": "Optimized performance.",
+            "f2_t": "Easy",
+            "f2_d": "C++ lua.",
+            "f3_t": "Open",
+            "f3_d": "Community driven.",
+            "ins_title": "Download",
+            "lbl_ver": "Version:",
+            "btn_dl": "Download Now"
+        },
+        "ru": {
+            "nav_home": "Главная",
+            "nav_install": "Установка",
+            "nav_docs": "Доки",
+            "hero_title": "Твори без границ",
+            "hero_desc": "Мощный игровой движок.",
+            "f1_t": "Скорость",
+            "f1_d": "Оптимизированное ядро.",
+            "f2_t": "Простота",
+            "f2_d": "C++ lua.",
+            "f3_t": "Открытость",
+            "f3_d": "Силами сообщества.",
+            "ins_title": "Загрузка",
+            "lbl_ver": "Версия:",
+            "btn_dl": "Скачать сейчас"
+        }
+    }
+}
