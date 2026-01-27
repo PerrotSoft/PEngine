@@ -47,6 +47,14 @@ namespace PEngine {
         float farPlane = 10.0f;
     };
     class Scene {
+        struct TextUI {
+            std::string content;
+            Vec::Vec3 color;
+			Vec::Vec2 position;
+            float rotation = 0.0f;
+            Vec::Vec2 pivot{ 0.5f, 0.5f };
+            float scale_x;
+		};
     public:
         struct Object {
             long long id = 0;
@@ -55,7 +63,7 @@ namespace PEngine {
             Vec::Vec3 rotator;
             Vec::Vec3 size{ 1.0f, 1.0f, 1.0f };
             std::string parent_name;
-            // 0=Off, 1=3D, 2=3D+Tex, 3=Button, 4=Checkbox, 5=Input, 6=Panel, 7=Image
+			// 0=Off, 1=3D, 2=3D+Tex, 3=Button, 4=Checkbox, 5=Input, 6=Panel, 7=Image, 8=Text
             uint8_t state = 0;
             gnu::PEGLModel model;
             gnu::PEGLMaterial material;
@@ -64,7 +72,11 @@ namespace PEngine {
             gnu::UI::PEGLInputField inputfield_ui;
             gnu::UI::PEGLPanel panel_ui;
             gnu::UI::PEGLImage image_ui;
-            void (*on_click)() = nullptr; 
+			TextUI text_ui;
+			bool is_my_sheder = false;
+			gnu::PEGLShaderProgram shader_program;
+
+            void (*on_click)(Object obj) = nullptr;
             bool is_pressed = false;      
             float visual_scale = 1.0f;
         };
@@ -74,20 +86,35 @@ namespace PEngine {
         int screenHeight = 720;
         unsigned int next_object_id = 1;
         std::map<std::string, gnu::PEGLShaderProgram> sceneShaders;
-		gnu::PEGLLightSource linghtSource;
+        std::vector<gnu::PEGLPointLight> Scene_lights;
 
         Scene(std::map<std::string, gnu::PEGLShaderProgram> shaders);
         Object& AddObject(const Object& object);
         Object& SearchObject(const char* name); 
 		Object* GetObjectById(long long id);
+		void RemoveObject(const char* name);
         void SetCamera(Vec::Vec3 position, float yaw, float pitch, float roll = 0.0f);
         void UpdateUI(GLFWwindow* window);
         void Render();
+
+        Object createUIObjectText(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const char* text, Vec::Vec3 color);
+		Object createUIObjectImage(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const Vec::Vec2& size, Texture texture);
+        Object createUIObjectImage(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const Vec::Vec2& size, const std::string& filepath);
+		Object createUIObjectPanel(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const Vec::Vec2& size, Vec::Vec3 color);
+		Object createUIObjectButton(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const char* text, Vec::Vec3 color, Vec::Vec3 text_color);
+		Object createUIObjectCheckbox(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const char* text, Vec::Vec3 color, Vec::Vec3 text_color);
+		Object createUIObjectInputField(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const char* hintText, Vec::Vec3 color, Vec::Vec3 text_color);
+		Object create3DObject(const std::string& name, const gnu::PEGLModel& model, Vec::Vec3 baseColor);
+        Object create3DObject(const std::string& name, const std::string& filepath, const std::string& filepath_mnt, Vec::Vec3 baseColor);
+		Object create3DMaterialObject(const std::string& name, const gnu::PEGLModel& model, const gnu::PEGLMaterial& material);
+        Object create3DMaterialObject(const std::string& name, const std::string& filepath, const std::string& filepath_mnt, const gnu::PEGLMaterial& material);
+		Texture LoadTextureFromFile(const std::string& filepath);
+		gnu::PEGLModel LoadModelFromOBJ(const std::string& filepath, const std::string& filepath_mnt);
     };
 
     class Engine {
     public:
-        Engine(int width, int height, const std::string& title);
+        Engine(int width, int height, const std::string& title,gnu::Level_graphics lg);
         ~Engine();
 
         bool ShouldClose() const;
@@ -99,7 +126,7 @@ namespace PEngine {
         GLFWwindow* window = nullptr;
         Scene* scene = nullptr;
         std::map<std::string, gnu::PEGLShaderProgram> defaultShaders;
-        void InitShaders();
+        void InitShaders(gnu::Level_graphics lg);
     };
 }
 #endif

@@ -25,7 +25,12 @@ namespace gnu {
         glm::vec2 texCoords;
         glm::vec3 tangent;
     };
-
+    enum Level_graphics
+    {
+        PEGL_GRAPHICS_LOW,
+        PEGL_GRAPHICS_MEDIUM,
+		PEGL_GRAPHICS_HIGH
+    };
     struct PEGLMaterial {
         glm::vec3 baseColor{ 1.0f };
         float opacity = 1.0f;
@@ -68,15 +73,10 @@ namespace gnu {
         std::vector<PEGLMesh> meshes;
     };
 
-    struct PEGLLightSource {
-        glm::vec3 position{ 0.0f, 0.0f, 0.0f };
-        glm::vec3 color{ 1.0f, 1.0f, 1.0f };
-        float intensity = 1.0f;
-
-        glm::quat rotation{ 1.0f, 0.0f, 0.0f, 0.0f };
-        glm::vec3 scale{ 1.0f };
-
-        glm::mat4 get_transform() const;
+    struct PEGLPointLight {
+        glm::vec3 pos;
+        glm::vec3 color;
+        float intensity;
     };
 
     struct PEGLtinyobj_index_cmp {
@@ -85,19 +85,18 @@ namespace gnu {
 
     GLFWwindow* PEGLInit_OpenGL_Window(int width, int height, const std::string& title);
     void PEGLShow_Loading_Screen(GLFWwindow* window,const gnu::PEGLShaderProgram& uiShader,const glm::mat4& orthoMatrix);
-    PEGLShaderProgram* PEGLAudo_Compile_and_Link_Shader();
+    PEGLShaderProgram* PEGLAudo_Compile_and_Link_Shader(Level_graphics lg);
     PEGLShaderProgram PEGLCompile_and_Link_Shader(const std::string& vertexPath,const std::string& fragmentPath);
     GLuint PEGLLoad_Texture_From_File(const std::string& filePath);
     void PEGLPrepare_Mesh_For_GPU(PEGLMesh& mesh, const std::vector<PEGLVertex>& vertices,const std::vector<uint32_t>& indices);
     PEGLModel PEGLLoad_Model_From_File_OBJ(const std::string& filePath, const std::string& baseDir);
     PEGLModel PEGLCreate_Cube_Model();
     void PEGLDraw_Mesh(const PEGLMesh& mesh, const PEGLShaderProgram& shader,
-        const glm::mat4& viewProjection, const glm::mat4& lightSpaceMatrix,
-        const glm::vec3& lightPos, const glm::vec3& viewPos, const glm::mat4& modelMatrix);
+        const glm::mat4& viewProjection, const std::vector<PEGLPointLight>& allLights,
+        const glm::vec3& viewPos, const glm::mat4& modelMatrix);
     void PEGLDraw_Model(const PEGLModel& model, const PEGLShaderProgram& shader,
-        const glm::mat4& viewProjection, const glm::mat4& lightSpaceMatrix,
-        const glm::vec3& lightPos, const glm::vec3& viewPos, const glm::mat4& modelMatrix);
-    PEGLLightSource PEGLCreate_Light_Source(const glm::vec3& position, const glm::vec3& color, float intensity);
+        const glm::mat4& viewProjection, const std::vector<PEGLPointLight>& allLights,
+        const glm::vec3& viewPos, const glm::mat4& modelMatrix);
     void PEGLDelete_Model(PEGLModel& model);
     void PEGLDelete_Shader_Program(PEGLShaderProgram& program);
 
@@ -107,8 +106,9 @@ namespace gnu {
             glm::vec2 position{ 0.0f };
             glm::vec2 size{ 100.0f, 30.0f };
             glm::vec3 color{ 0.7f, 0.7f, 0.7f };
-            PEGLMesh mesh;
             float rotation = 0.0f;
+            glm::vec2 pivot{ 0.5f, 0.5f };
+            PEGLMesh mesh;
             float layer = 0.0f;
 
             glm::mat4 get_transform() const;
@@ -122,6 +122,7 @@ namespace gnu {
 
         struct PEGLCheckbox : public PEGLUIQuad {
             glm::vec2 boxSize{ 20.0f, 20.0f };
+            glm::vec3 textColor{ 0.0f, 0.0f, 0.0f };
             bool isChecked = false;
             std::string text = "Checkbox";
         };
@@ -134,7 +135,7 @@ namespace gnu {
         };
 
         struct PEGLImage : public PEGLUIQuad {
-            GLuint textureID = 0; // ID текстуры для отрисовки.
+            GLuint textureID = 0;
         };
 
         struct PEGLPanel : public PEGLUIQuad {
@@ -142,7 +143,7 @@ namespace gnu {
 
         PEGLMesh PEGLCreate_Quad_Mesh();
 
-        void PEGLDraw_Quad_2D(const PEGLUIQuad& quad, const PEGLShaderProgram& shader, const glm::mat4& orthoMatrix);
+        void PEGLDraw_Quad_2D(const PEGLUIQuad& quad, const PEGLShaderProgram& shader, const glm::mat4& orthoMatrix, float roundness);
 
         void PEGLDraw_Button(const PEGLButton& button, const PEGLShaderProgram& uiShader, const PEGLShaderProgram& textShader, const glm::mat4& orthoMatrix);
         void PEGLDraw_Checkbox(const PEGLCheckbox& checkbox, const PEGLShaderProgram& uiShader, const PEGLShaderProgram& textShader, const glm::mat4& orthoMatrix);

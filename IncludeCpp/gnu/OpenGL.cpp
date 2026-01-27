@@ -46,13 +46,6 @@ namespace gnu {
         model = glm::scale(model, scale);
         return model;
     }
-    glm::mat4 PEGLLightSource::get_transform() const {
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, position);
-        model = model * glm::toMat4(rotation);
-        model = glm::scale(model, scale);
-        return model;
-    }
     void PEGLMesh::translate(const glm::vec3& offset) {
         position += offset;
     }
@@ -174,12 +167,27 @@ namespace gnu {
     static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
         glViewport(0, 0, width, height);
     }
-    PEGLShaderProgram* PEGLAudo_Compile_and_Link_Shader() {
-        PEGLShaderProgram modelShader = PEGLCompile_and_Link_Shader("simple.vert", "simple.frag");
+    PEGLShaderProgram* PEGLAudo_Compile_and_Link_Shader(Level_graphics lg) {
+        std::string graphicsbasePath;
+        switch (lg)
+        {
+        case gnu::PEGL_GRAPHICS_LOW:
+			graphicsbasePath = "Low";
+            break;
+        case gnu::PEGL_GRAPHICS_MEDIUM:
+			graphicsbasePath = "Medium";
+            break;
+        case gnu::PEGL_GRAPHICS_HIGH:
+			graphicsbasePath = "High";
+            break;
+        default:
+			graphicsbasePath = "Medium";
+            break;
+        }
 
-        PEGLShaderProgram uiShader = PEGLCompile_and_Link_Shader("ui.vert", "ui.frag");
-
-        PEGLShaderProgram textShader = PEGLCompile_and_Link_Shader("text.vert", "text.frag");
+        PEGLShaderProgram modelShader = PEGLCompile_and_Link_Shader("default\\"+graphicsbasePath+"\\simple.vert", "default\\"+graphicsbasePath+"\\simple.frag");
+        PEGLShaderProgram uiShader = PEGLCompile_and_Link_Shader("default\\ui.vert", "default\\ui.frag");
+        PEGLShaderProgram textShader = PEGLCompile_and_Link_Shader("default\\text.vert", "default\\text.frag");
 	    return new PEGLShaderProgram[3]{ modelShader, uiShader, textShader };
     }
 
@@ -202,7 +210,6 @@ namespace gnu {
         UI::PEGLImage splashImage;
         static PEGLMesh staticQuadPEGLMesh = UI::PEGLCreate_Quad_Mesh();
 
-        splashImage.mesh = staticQuadPEGLMesh;
         splashImage.textureID = splashTextureID;
         splashImage.position = glm::vec2(0.0f, 0.0f);
         splashImage.size = glm::vec2((float)windowWidth, (float)windowHeight);
@@ -422,67 +429,55 @@ namespace gnu {
         model.meshes.push_back(std::move(cubePEGLMesh));
         return model;
     }
-
-    PEGLLightSource PEGLCreate_Light_Source(const glm::vec3& position, const glm::vec3& color, float intensity) {
-        PEGLLightSource ls;
-        ls.position = position;
-        ls.color = color;
-        ls.intensity = intensity;
-        return ls;
-    }
     bool PEGLtinyobj_index_cmp::operator()(const tinyobj::index_t& a, const tinyobj::index_t& b) const {
         if (a.vertex_index != b.vertex_index) return a.vertex_index < b.vertex_index;
         if (a.normal_index != b.normal_index) return a.normal_index < b.normal_index;
         return a.texcoord_index < b.texcoord_index;
     }
     void PEGLDraw_Mesh(const PEGLMesh& mesh, const PEGLShaderProgram& shader,
-        const glm::mat4& viewProjection, const glm::mat4& lightSpaceMatrix,
-        const glm::vec3& lightPos, const glm::vec3& viewPos, const glm::mat4& modelMatrix) {
+        const glm::mat4& viewProjection, const std::vector<PEGLPointLight>& allLights,
+        const glm::vec3& viewPos, const glm::mat4& modelMatrix) {
 
         if (mesh.VAO == 0) return;
-
         glUseProgram(shader.programID);
-
-        if (mesh.material.hasAlpha) {
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        }
-        else {
-            glDisable(GL_BLEND);
-        }
 
         glUniformMatrix4fv(glGetUniformLocation(shader.programID, "model"), 1, GL_FALSE, &modelMatrix[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(shader.programID, "viewProjection"), 1, GL_FALSE, &viewProjection[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(shader.programID, "lightSpaceMatrix"), 1, GL_FALSE, &lightSpaceMatrix[0][0]);
-        glUniform3f(glGetUniformLocation(shader.programID, "lightPos"), lightPos.x, lightPos.y, lightPos.z);
         glUniform3f(glGetUniformLocation(shader.programID, "viewPos"), viewPos.x, viewPos.y, viewPos.z);
 
-        auto setTex = [&](const std::string& name, GLuint id, int unit) {
-            glActiveTexture(GL_TEXTURE0 + unit);
-            glBindTexture(GL_TEXTURE_2D, id);
-            glUniform1i(glGetUniformLocation(shader.programID, name.c_str()), unit);
-            glUniform1i(glGetUniformLocation(shader.programID, ("has" + name).c_str()), id != 0);
-            };
-
-        setTex("diffuseMap", mesh.material.diffuseMap, 0);
-        setTex("normalMap", mesh.material.normalMap, 1);
-        setTex("specularMap", mesh.material.specularMap, 2);
-        setTex("shadowMap", mesh.material.shadowMap, 3);
-
-        glUniform3f(glGetUniformLocation(shader.programID, "baseColor"),
-            mesh.material.baseColor.r, mesh.material.baseColor.g, mesh.material.baseColor.b);
+        int numLights = static_cast<int>(allLights.size());
+        glUniform1i(glGetUniformLocation(shader.programID, "activeLightCount"), allLights.size());
+        for (int i = 0; i < allLights.size(); i++) {
+            std::string base = "lights[" + std::to_string(i) + "]";
+            glUniform3f(glGetUniformLocation(shader.programID, (base + ".position").c_str()), allLights[i].pos.x, allLights[i].pos.y, allLights[i].pos.z);
+            glUniform3f(glGetUniformLocation(shader.programID, (base + ".color").c_str()), allLights[i].color.x, allLights[i].color.y, allLights[i].color.z);
+            glUniform1f(glGetUniformLocation(shader.programID, (base + ".intensity").c_str()), allLights[i].intensity);
+        }
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, mesh.material.diffuseMap);
+        glUniform1i(glGetUniformLocation(shader.programID, "diffuseMap"), 0);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, mesh.material.normalMap);
+        glUniform1i(glGetUniformLocation(shader.programID, "normalMap"), 1);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, mesh.material.specularMap);
+        glUniform1i(glGetUniformLocation(shader.programID, "specularMap"), 2);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, mesh.material.shadowMap);
+        glUniform1i(glGetUniformLocation(shader.programID, "shadowMap"), 3);
         glUniform1f(glGetUniformLocation(shader.programID, "opacity"), mesh.material.opacity);
+        glUniform1f(glGetUniformLocation(shader.programID, "shininess"), mesh.material.shininess);
+
         glBindVertexArray(mesh.VAO);
         glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0);
         glBindVertexArray(0);
-        glUseProgram(0);
     }
     void PEGLDraw_Model(const PEGLModel& model, const PEGLShaderProgram& shader,
-        const glm::mat4& viewProjection, const glm::mat4& lightSpaceMatrix,
-        const glm::vec3& lightPos, const glm::vec3& viewPos,
-        const glm::mat4& modelMatrix) {
+        const glm::mat4& viewProjection, const std::vector<PEGLPointLight>& allLights,
+        const glm::vec3& viewPos, const glm::mat4& modelMatrix) {
+
         for (const auto& mesh : model.meshes) {
-            PEGLDraw_Mesh(mesh, shader, viewProjection, lightSpaceMatrix, lightPos, viewPos, modelMatrix);
+            PEGLDraw_Mesh(mesh, shader, viewProjection, allLights, viewPos, modelMatrix);
         }
     }
     namespace UI {
@@ -498,12 +493,15 @@ namespace gnu {
             if (roundLoc != -1) glUniform1f(roundLoc, roundness);
         }
 
-        glm::mat4 PEGLUIQuad::get_transform() const {
+        glm::mat4 gnu::UI::PEGLUIQuad::get_transform() const {
             float z_position = -this->layer * 0.01f;
             glm::mat4 model = glm::mat4(1.0f);
             model = glm::translate(model, glm::vec3(position.x, position.y, z_position));
+            model = glm::translate(model, glm::vec3(0.5f * size.x, 0.5f * size.y, 0.0f));
             model = glm::rotate(model, glm::radians(rotation), glm::vec3(0.0f, 0.0f, 1.0f));
+            model = glm::translate(model, glm::vec3(-0.5f * size.x, -0.5f * size.y, 0.0f));
             model = glm::scale(model, glm::vec3(size.x, size.y, 1.0f));
+
             return model;
         }
 
@@ -592,7 +590,7 @@ namespace gnu {
             glBindVertexArray(0);
             return mesh;
         }
-        void PEGLDraw_Quad_2D(const PEGLUIQuad& quad, const PEGLShaderProgram& shader, const glm::mat4& orthoMatrix, float roundness) {
+        void gnu::UI::PEGLDraw_Quad_2D(const PEGLUIQuad& quad, const PEGLShaderProgram& shader, const glm::mat4& orthoMatrix, float roundness) {
             if (quad.mesh.VAO == 0 || shader.programID == 0) return;
 
             glUseProgram(shader.programID);
@@ -600,8 +598,10 @@ namespace gnu {
             glEnable(GL_BLEND);
             glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
             glDisable(GL_DEPTH_TEST);
+
             glm::mat4 model = quad.get_transform();
             glm::mat4 MVP = orthoMatrix * model;
+
             glUniformMatrix4fv(glGetUniformLocation(shader.programID, "MVP"), 1, GL_FALSE, &MVP[0][0]);
             glUniform2f(glGetUniformLocation(shader.programID, "size"), quad.size.x, quad.size.y);
             glUniform1f(glGetUniformLocation(shader.programID, "roundness"), roundness);
@@ -610,6 +610,7 @@ namespace gnu {
                 quad.mesh.material.baseColor.r,
                 quad.mesh.material.baseColor.g,
                 quad.mesh.material.baseColor.b);
+
             GLuint texID = 0;
             const PEGLImage* img = dynamic_cast<const PEGLImage*>(&quad);
             if (img && img->textureID != 0) {
@@ -618,6 +619,7 @@ namespace gnu {
             else {
                 texID = quad.mesh.material.diffuseMap;
             }
+
             if (texID != 0) {
                 glActiveTexture(GL_TEXTURE0);
                 glBindTexture(GL_TEXTURE_2D, texID);
@@ -627,6 +629,7 @@ namespace gnu {
             else {
                 glUniform1i(glGetUniformLocation(shader.programID, "useTexture"), 0);
             }
+
             glBindVertexArray(quad.mesh.VAO);
             glDrawElements(GL_TRIANGLES, quad.mesh.indexCount, GL_UNSIGNED_INT, 0);
             glBindVertexArray(0);
@@ -666,7 +669,7 @@ namespace gnu {
             glUseProgram(textShader.programID);
             glUniformMatrix4fv(glGetUniformLocation(textShader.programID, "orthoMatrix"), 1, GL_FALSE, &orthoMatrix[0][0]);
             PEGLprint_string(checkbox.position.x + checkbox.boxSize.x + 10.0f, checkbox.position.y + (checkbox.boxSize.y / 2) - 8.0f,
-                checkbox.text.c_str(), 1.0f, 1.0f, 1.0f, 1.0f, false);
+                checkbox.text.c_str(), checkbox.textColor[0], checkbox.textColor[1], checkbox.textColor[2], 1.0f, false);
         }
 
         void PEGLDraw_InputField(const PEGLInputField& input, const PEGLShaderProgram& uiShader, const PEGLShaderProgram& textShader, const glm::mat4& orthoMatrix) {

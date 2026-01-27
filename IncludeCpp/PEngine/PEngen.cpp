@@ -22,10 +22,10 @@ namespace PEngine {
         m = glm::scale(m, glm::vec3(sca.x, sca.y, sca.z));
         return m;
     }
-    Engine::Engine(int width, int height, const std::string& title) {
+    Engine::Engine(int width, int height, const std::string& title, gnu::Level_graphics lg) {
         window = gnu::PEGLInit_OpenGL_Window(width, height, title);
         if (!window) throw std::runtime_error("Failed to init window");
-        InitShaders();
+        InitShaders(lg);
         scene = new Scene(defaultShaders);
         scene->screenWidth = width;
         scene->screenHeight = height;
@@ -47,12 +47,13 @@ namespace PEngine {
         if (scene) scene->Render();
 
         if (window) {
+            if (scene) scene->UpdateUI(window);
             glfwSwapBuffers(window);
             glfwPollEvents();
         }
     }
-    void Engine::InitShaders() {
-        gnu::PEGLShaderProgram* compiled = gnu::PEGLAudo_Compile_and_Link_Shader();
+    void Engine::InitShaders(gnu::Level_graphics lg) {
+        gnu::PEGLShaderProgram* compiled = gnu::PEGLAudo_Compile_and_Link_Shader(lg);
         if (compiled) {
             defaultShaders["model"] = compiled[0];
             defaultShaders["ui"] = compiled[1];
@@ -72,6 +73,15 @@ namespace PEngine {
         }
         return nullptr;
 	}
+    void Scene::RemoveObject(const char* name)
+    {
+        for (auto it = Scene_objects.begin(); it != Scene_objects.end(); ++it) {
+            if (it->name == name) {
+                Scene_objects.erase(it);
+                return;
+            }
+		}
+    }
     Scene::Object& Scene::SearchObject(const char* name) {
         for (auto& obj : Scene_objects) {
             if (obj.name == name) return obj;
@@ -115,7 +125,7 @@ namespace PEngine {
                 else if (obj.is_pressed && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
                     obj.is_pressed = false;
                     obj.visual_scale = 1.0f;
-                    if (hovered && obj.on_click) obj.on_click();
+                    if (hovered && obj.on_click) obj.on_click(obj);
                 }
                 else {
                     obj.visual_scale = 1.0f;
@@ -170,25 +180,27 @@ namespace PEngine {
     }
     void Scene::Render() {
         glEnable(GL_DEPTH_TEST);
+
         glm::vec3 p(mainCamera.pos.x, mainCamera.pos.y, mainCamera.pos.z);
         glm::vec3 f(mainCamera.front.x, mainCamera.front.y, mainCamera.front.z);
         glm::vec3 u(mainCamera.up.x, mainCamera.up.y, mainCamera.up.z);
-
         glm::mat4 view = glm::lookAt(p, p + f, u);
         glm::mat4 projection = glm::perspective(glm::radians(45.0f), (float)screenWidth / screenHeight, 0.1f, mainCamera.farPlane);
         glm::mat4 vp = projection * view;
         glm::mat4 ortho = glm::ortho(0.0f, (float)screenWidth, (float)screenHeight, 0.0f, -1.0f, 1.0f);
-        glm::mat4 lightModel = linghtSource.get_transform();
-        glm::vec3 lightPos = glm::vec3(lightModel[3]);
-        glm::mat4 lightSpaceMatrix = linghtSource.get_transform();
+
+		gnu::PEGLShaderProgram pshader = sceneShaders["model"];
         for (auto& obj : Scene_objects) {
             if (obj.state == 0) continue;
             if (obj.state == 1 || obj.state == 2) {
+                if (obj.is_my_sheder) {
+                    pshader = obj.shader_program;
+                }
                 glm::mat4 modelMatrix = CalculateGLMMatrix(obj.pos, obj.rotator, obj.size);
                 if (!obj.parent_name.empty()) {
                     try {
-                        Object& p = SearchObject(obj.parent_name.c_str());
-                        glm::mat4 pMat = CalculateGLMMatrix(p.pos, p.rotator, p.size);
+                        Object& pObj = SearchObject(obj.parent_name.c_str());
+                        glm::mat4 pMat = CalculateGLMMatrix(pObj.pos, pObj.rotator, pObj.size);
                         modelMatrix = pMat * modelMatrix;
                     }
                     catch (...) {}
@@ -196,31 +208,182 @@ namespace PEngine {
                 for (auto& mesh : obj.model.meshes) {
                     mesh.material = obj.material;
                 }
-                gnu::PEGLDraw_Model(obj.model, sceneShaders["model"], vp, lightSpaceMatrix, lightPos, p, modelMatrix);
+                gnu::PEGLDraw_Model(
+                    obj.model,
+                    pshader,
+                    vp,
+                    Scene_lights,
+                    p,
+                    modelMatrix
+                );
             }
             else if (obj.state >= 3 && obj.state <= 7) {
                 glDisable(GL_DEPTH_TEST);
-
+				if (obj.is_my_sheder) {
+                    pshader = obj.shader_program;
+                }else {
+					pshader = sceneShaders["ui"];
+                }
+                
                 switch (obj.state) {
                 case 3:
-                    gnu::UI::PEGLDraw_Button(obj.button_ui, sceneShaders["ui"], sceneShaders["text"], ortho);
+					obj.button_ui.mesh = gnu::UI::PEGLCreate_Quad_Mesh();
+                    gnu::UI::PEGLDraw_Button(obj.button_ui, pshader, sceneShaders["text"], ortho);
                     break;
                 case 4:
-                    gnu::UI::PEGLDraw_Checkbox(obj.checkbox_ui, sceneShaders["ui"], sceneShaders["text"], ortho);
+					obj.checkbox_ui.mesh = gnu::UI::PEGLCreate_Quad_Mesh();
+                    gnu::UI::PEGLDraw_Checkbox(obj.checkbox_ui, pshader, sceneShaders["text"], ortho);
                     break;
                 case 5:
-                    gnu::UI::PEGLDraw_InputField(obj.inputfield_ui, sceneShaders["ui"], sceneShaders["text"], ortho);
+					obj.inputfield_ui.mesh = gnu::UI::PEGLCreate_Quad_Mesh();
+                    gnu::UI::PEGLDraw_InputField(obj.inputfield_ui, pshader, sceneShaders["text"], ortho);
                     break;
                 case 6:
-                    gnu::UI::PEGLDraw_Panel(obj.panel_ui, sceneShaders["ui"], ortho);
+					obj.panel_ui.mesh = gnu::UI::PEGLCreate_Quad_Mesh();
+                    gnu::UI::PEGLDraw_Panel(obj.panel_ui, pshader, ortho);
                     break;
                 case 7:
-                    gnu::UI::PEGLDraw_Image(obj.image_ui, sceneShaders["ui"], ortho);
+					obj.image_ui.mesh = gnu::UI::PEGLCreate_Quad_Mesh();
+                    gnu::UI::PEGLDraw_Image(obj.image_ui, pshader, ortho);
                     break;
+				case 8:
+                    gnu::UI::PEGLprint_string(
+						obj.text_ui.position.x,
+						obj.text_ui.position.y,
+						obj.text_ui.content.c_str(),
+						obj.text_ui.color.x,
+						obj.text_ui.color.y,
+						obj.text_ui.color.y,
+						obj.text_ui.scale_x,
+						true
+					);
+					break;
                 }
-
                 glEnable(GL_DEPTH_TEST);
             }
         }
     }
+    Scene::Object Scene::createUIObjectText(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const char* text, Vec::Vec3 color) {
+        Object obj;
+        obj.name = name;
+        obj.state = 8;
+        obj.text_ui.rotation = rotation;
+        obj.text_ui.position = position;
+        obj.text_ui.content = text;
+        obj.text_ui.color = color;
+        obj.text_ui.pivot = pivot;
+        return obj;
+    }
+
+    Scene::Object Scene::createUIObjectImage(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const Vec::Vec2& size, Texture texture) {
+        Object obj;
+        obj.name = name;
+        obj.state = 7;
+        obj.image_ui.position = glm::vec2(position.x, position.y);
+        obj.image_ui.size = glm::vec2(size.x, size.y);
+        obj.image_ui.textureID = texture;
+        obj.image_ui.rotation = rotation;
+        obj.image_ui.pivot = glm::vec2(pivot.x, pivot.y);
+        return obj;
+    }
+
+    Scene::Object Scene::createUIObjectImage(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const Vec::Vec2& size, const std::string& filepath) {
+        Object obj = createUIObjectImage(name, position, pivot, rotation, size, LoadTextureFromFile(filepath));
+        return obj;
+    }
+
+    Scene::Object Scene::createUIObjectPanel(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const Vec::Vec2& size, Vec::Vec3 color) {
+        Object obj;
+        obj.name = name;
+        obj.state = 6;
+        obj.panel_ui.position = glm::vec2(position.x, position.y);
+        obj.panel_ui.size = glm::vec2(size.x, size.y);
+        obj.panel_ui.color = glm::vec3(color.x, color.y, color.z);
+        obj.panel_ui.rotation = rotation;
+        return obj;
+    }
+
+    Scene::Object Scene::createUIObjectButton(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const char* text, Vec::Vec3 color, Vec::Vec3 text_color) {
+        Object obj;
+        obj.name = name;
+        obj.state = 3;
+        obj.button_ui.position = glm::vec2(position.x, position.y);
+        obj.button_ui.size = glm::vec2(200.0f, 50.0f);
+        obj.button_ui.text = text;
+        obj.button_ui.textColor = glm::vec3(text_color.x, text_color.y, text_color.z);
+        obj.button_ui.color = glm::vec3(color.x, color.y, color.z);
+        obj.button_ui.rotation = rotation;
+        return obj;
+    }
+
+    Scene::Object Scene::createUIObjectCheckbox(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const char* text, Vec::Vec3 color, Vec::Vec3 text_color) {
+        Object obj;
+        obj.name = name;
+        obj.state = 4;
+        obj.checkbox_ui.position = glm::vec2(position.x, position.y);
+        obj.checkbox_ui.boxSize = glm::vec2(20.0f, 20.0f);
+        obj.checkbox_ui.text = text;
+        obj.checkbox_ui.textColor = glm::vec3(text_color.x, text_color.y, text_color.z);
+        obj.checkbox_ui.color = glm::vec3(color.x, color.y, color.z);
+        obj.checkbox_ui.rotation = rotation;
+        return obj;
+    }
+
+    Scene::Object Scene::createUIObjectInputField(const std::string& name, const Vec::Vec2& position, Vec::Vec2 pivot, float rotation, const char* hintText, Vec::Vec3 color, Vec::Vec3 text_color) {
+        Object obj;
+        obj.name = name;
+        obj.state = 5;
+        obj.inputfield_ui.position = glm::vec2(position.x, position.y);
+        obj.inputfield_ui.size = glm::vec2(200.0f, 30.0f);
+        obj.inputfield_ui.hintText = hintText;
+        obj.inputfield_ui.textColor = glm::vec3(text_color.x, text_color.y, text_color.z);
+        obj.inputfield_ui.color = glm::vec3(color.x, color.y, color.z);
+        obj.inputfield_ui.rotation = rotation;
+        return obj;
+    }
+    Scene::Object Scene::create3DObject(const std::string& name, const gnu::PEGLModel& model, Vec::Vec3 baseColor) {
+        Object obj;
+        obj.id = next_object_id++;
+        obj.name = name;
+        obj.state = 1;
+        obj.model = model;
+        obj.material.baseColor = glm::vec3(baseColor.x, baseColor.y, baseColor.z);
+        return obj;
+    }
+
+    Scene::Object Scene::create3DObject(const std::string& name, const std::string& filepath, const std::string& filepath_mnt, Vec::Vec3 baseColor) {
+        Object obj;
+        obj.id = next_object_id++;
+        obj.name = name;
+        obj.state = 1;
+        obj.model = LoadModelFromOBJ(filepath, filepath_mnt);
+        obj.material.baseColor = glm::vec3(baseColor.x, baseColor.y, baseColor.z);
+        return obj;
+    }
+
+    Scene::Object Scene::create3DMaterialObject(const std::string& name, const gnu::PEGLModel& model, const gnu::PEGLMaterial& material) {
+        Object obj;
+        obj.id = next_object_id++;
+        obj.name = name;
+        obj.state = 2;
+        obj.model = model;
+        obj.material = material;
+        return obj;
+    }
+
+    Scene::Object Scene::create3DMaterialObject(const std::string& name, const std::string& filepath, const std::string& filepath_mnt, const gnu::PEGLMaterial& material) {
+        Object obj;
+        obj.id = next_object_id++;
+        obj.name = name;
+        obj.state = 2;
+        obj.model = LoadModelFromOBJ(filepath, filepath_mnt);
+        obj.material = material;
+        return obj;
+    }
+    Texture Scene::LoadTextureFromFile(const std::string& filepath) {
+        return gnu::PEGLLoad_Texture_From_File(filepath);
+    }
+    gnu::PEGLModel Scene::LoadModelFromOBJ(const std::string& filepath, const std::string& filepath_mnt) {
+        return gnu::PEGLLoad_Model_From_File_OBJ(filepath,filepath_mnt);
+	}
 }

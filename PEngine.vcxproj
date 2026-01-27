@@ -111,8 +111,8 @@
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>Libraries\include;$(IncludePath)</IncludePath>
     <LibraryPath>Libraries\lib;$(LibraryPath)</LibraryPath>
-    <OutDir>$(SolutionDir)Lib\x86\</OutDir>
-    <IntDir>$(SolutionDir)PELib\x86\</IntDir>
+    <OutDir>$(SolutionDir)LibR\x86\</OutDir>
+    <IntDir>$(SolutionDir)PELibR\x86\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
@@ -132,8 +132,8 @@
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>Libraries\include;$(IncludePath)</IncludePath>
     <LibraryPath>Libraries\lib;$(LibraryPath)</LibraryPath>
-    <OutDir>$(SolutionDir)Lib\</OutDir>
-    <IntDir>$(SolutionDir)PELib\</IntDir>
+    <OutDir>$(SolutionDir)LibR\</OutDir>
+    <IntDir>$(SolutionDir)PELibR\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -281,13 +281,75 @@ Gdi32.lib;Shell32.lib;glfw3.lib</AdditionalDependencies>
     <ClCompile Include="IncludeCpp\cfg\log.cpp" />
     <ClCompile Include="IncludeCpp\gnu\OpenGL.cpp" />
     <ClCompile Include="IncludeCpp\Input\Input.cpp" />
+    <ClCompile Include="IncludeCpp\lua\lapi.c" />
+    <ClCompile Include="IncludeCpp\lua\lauxlib.c" />
+    <ClCompile Include="IncludeCpp\lua\lbaselib.c" />
+    <ClCompile Include="IncludeCpp\lua\lcode.c" />
+    <ClCompile Include="IncludeCpp\lua\lcorolib.c" />
+    <ClCompile Include="IncludeCpp\lua\lctype.c" />
+    <ClCompile Include="IncludeCpp\lua\ldblib.c" />
+    <ClCompile Include="IncludeCpp\lua\ldebug.c" />
+    <ClCompile Include="IncludeCpp\lua\ldo.c" />
+    <ClCompile Include="IncludeCpp\lua\ldump.c" />
+    <ClCompile Include="IncludeCpp\lua\lfunc.c" />
+    <ClCompile Include="IncludeCpp\lua\lgc.c" />
+    <ClCompile Include="IncludeCpp\lua\linit.c" />
+    <ClCompile Include="IncludeCpp\lua\liolib.c" />
+    <ClCompile Include="IncludeCpp\lua\llex.c" />
+    <ClCompile Include="IncludeCpp\lua\lmathlib.c" />
+    <ClCompile Include="IncludeCpp\lua\lmem.c" />
+    <ClCompile Include="IncludeCpp\lua\loadlib.c" />
+    <ClCompile Include="IncludeCpp\lua\lobject.c" />
+    <ClCompile Include="IncludeCpp\lua\lopcodes.c" />
+    <ClCompile Include="IncludeCpp\lua\loslib.c" />
+    <ClCompile Include="IncludeCpp\lua\lparser.c" />
+    <ClCompile Include="IncludeCpp\lua\lstate.c" />
+    <ClCompile Include="IncludeCpp\lua\lstring.c" />
+    <ClCompile Include="IncludeCpp\lua\lstrlib.c" />
+    <ClCompile Include="IncludeCpp\lua\ltable.c" />
+    <ClCompile Include="IncludeCpp\lua\ltablib.c" />
+    <ClCompile Include="IncludeCpp\lua\ltm.c" />
+    <ClCompile Include="IncludeCpp\lua\lua.c" />
+    <ClCompile Include="IncludeCpp\lua\luac.c" />
+    <ClCompile Include="IncludeCpp\lua\lundump.c" />
+    <ClCompile Include="IncludeCpp\lua\lutf8lib.c" />
+    <ClCompile Include="IncludeCpp\lua\lvm.c" />
+    <ClCompile Include="IncludeCpp\lua\lzio.c" />
     <ClCompile Include="IncludeCpp\PEngine\PEngen.cpp" />
-    <ClCompile Include="IncludeCpp\Physics\Physics Base.cpp" />
-    <ClCompile Include="IncludeCpp\Physics\Physics.cpp" />
+    <ClCompile Include="IncludeCpp\PEngine\Physics\Physics Base.cpp" />
+    <ClCompile Include="IncludeCpp\PEngine\Physics\Physics.cpp" />
     <ClCompile Include="Include\glm\detail\glm.cpp" />
     <ClCompile Include="Library\Include\glm\detail\glm.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="IncludeCpp\lua\lapi.h" />
+    <ClInclude Include="IncludeCpp\lua\lauxlib.h" />
+    <ClInclude Include="IncludeCpp\lua\lcode.h" />
+    <ClInclude Include="IncludeCpp\lua\lctype.h" />
+    <ClInclude Include="IncludeCpp\lua\ldebug.h" />
+    <ClInclude Include="IncludeCpp\lua\ldo.h" />
+    <ClInclude Include="IncludeCpp\lua\lfunc.h" />
+    <ClInclude Include="IncludeCpp\lua\lgc.h" />
+    <ClInclude Include="IncludeCpp\lua\ljumptab.h" />
+    <ClInclude Include="IncludeCpp\lua\llex.h" />
+    <ClInclude Include="IncludeCpp\lua\llimits.h" />
+    <ClInclude Include="IncludeCpp\lua\lmem.h" />
+    <ClInclude Include="IncludeCpp\lua\lobject.h" />
+    <ClInclude Include="IncludeCpp\lua\lopcodes.h" />
+    <ClInclude Include="IncludeCpp\lua\lopnames.h" />
+    <ClInclude Include="IncludeCpp\lua\lparser.h" />
+    <ClInclude Include="IncludeCpp\lua\lprefix.h" />
+    <ClInclude Include="IncludeCpp\lua\lstate.h" />
+    <ClInclude Include="IncludeCpp\lua\lstring.h" />
+    <ClInclude Include="IncludeCpp\lua\ltable.h" />
+    <ClInclude Include="IncludeCpp\lua\ltm.h" />
+    <ClInclude Include="IncludeCpp\lua\lua.h" />
+    <ClInclude Include="IncludeCpp\lua\lua.hpp" />
+    <ClInclude Include="IncludeCpp\lua\luaconf.h" />
+    <ClInclude Include="IncludeCpp\lua\lualib.h" />
+    <ClInclude Include="IncludeCpp\lua\lundump.h" />
+    <ClInclude Include="IncludeCpp\lua\lvm.h" />
+    <ClInclude Include="IncludeCpp\lua\lzio.h" />
     <ClInclude Include="Include\glad\glad.h" />
     <ClInclude Include="Include\GLFW\glfw3.h" />
     <ClInclude Include="Include\GLFW\glfw3native.h" />
@@ -586,8 +648,8 @@ Gdi32.lib;Shell32.lib;glfw3.lib</AdditionalDependencies>
     <ClInclude Include="Include\cfg\cfg.h" />
     <ClInclude Include="Include\cfg\log.h" />
     <ClInclude Include="Include\PEngine\PEngine.h" />
-    <ClInclude Include="Include\Physics\Physics Base.h" />
-    <ClInclude Include="Include\Physics\Physics.h" />
+    <ClInclude Include="Include\PEngine\Physics\Physics Base.h" />
+    <ClInclude Include="Include\PEngine\Physics\Physics.h" />
     <ClInclude Include="Include\stb_easy_font.h" />
     <ClInclude Include="Include\stb_image.h" />
     <ClInclude Include="Include\tiny_obj_loader.h" />
