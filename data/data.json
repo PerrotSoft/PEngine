@@ -1,0 +1,45 @@
+{
+  "available_versions": [
+    { "id": "beta_0.1.0", "name": "Beta 0.1.0 (PBR Update)" },
+    { "id": "alpha_0.0.9", "name": "Alpha 0.0.9 (Legacy)" }
+  ],
+  "languages": [
+    { "code": "ru", "name": "RU" },
+    { "code": "en", "name": "EN" }
+  ],
+  "download_base_path": "dont/",
+  "localization": {
+    "ru": {
+      "nav_home": "Главная",
+      "nav_install": "Установка",
+      "nav_docs": "Документация",
+      "home_title": "PEngen Engine",
+      "home_desc": "Профессиональный графический движок на базе OpenGL.",
+      "install_title": "Загрузка движка",
+      "btn_download": "Скачать архив",
+      "docs_title": "Документация",
+      "docs_ver_label": "Версия:"
+    },
+    "en": {
+      "nav_home": "Home",
+      "nav_install": "Install",
+      "nav_docs": "Docs",
+      "home_title": "PEngen Engine",
+      "home_desc": "Professional OpenGL-based graphics engine.",
+      "install_title": "Download Engine",
+      "btn_download": "Download ZIP",
+      "docs_title": "Documentation",
+      "docs_ver_label": "Version:"
+    }
+  },
+  "docs_data": {
+    "beta_0.1.0": {
+      "ru": "## Обновление PBR\nВ этой версии добавлена система **Physically Based Rendering**.\n\n```cpp\n// Пример инициализации\nPEngine::Engine engine(1280, 720, \"PBR Test\");\n```",
+      "en": "## PBR Update\nAdded **Physically Based Rendering** system in this version.\n\n```cpp\n// Init example\nPEngine::Engine engine(1280, 720, \"PBR Test\");\n```"
+    },
+    "alpha_0.0.9": {
+      "ru": "## Старая версия\nЗдесь используется классическая модель освещения Фонга.",
+      "en": "## Legacy Version\nThis version uses classic Phong lighting model."
+    }
+  }
+}

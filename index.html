@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="icon.png">
+    <title>PEngen - GNU OpenGL Engine</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0b0b;
+            --mica-bg: rgba(32, 32, 32, 0.7);
+            --mica-border: rgba(255, 255, 255, 0.08);
+            --accent-color: #60cdff;
+            --accent-hover: #4fbbf0;
+            --text-main: #ffffff;
+            --text-secondary: #a0a0a0;
+            --control-bg: rgba(255, 255, 255, 0.06);
+            --control-hover: rgba(255, 255, 255, 0.1);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI Variable', 'Segoe UI', sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            background-image: 
+                radial-gradient(circle at 80% -20%, rgba(0, 80, 160, 0.4) 0%, transparent 50%),
+                radial-gradient(circle at -20% 120%, rgba(100, 30, 120, 0.3) 0%, transparent 50%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .logo {
+            display: flex;         /* Выстраивает иконку и текст в ряд */
+            align-items: center;    /* Центрирует их по вертикали */
+            gap: 10px;             /* Расстояние между иконкой и текстом */
+            font-size: 24px;       /* Размер шрифта PEngen */
+            font-weight: bold;
+            color: white;
+        }
+
+        .logo-img {
+            width: 32px;           /* Установи нужный размер иконки */
+            height: 32px;
+            object-fit: contain;   /* Чтобы картинка не растягивалась */
+        }
+        /* Навигация */
+        nav {
+            background: var(--mica-bg);
+            backdrop-filter: blur(30px) saturate(150%);
+            border-bottom: 1px solid var(--mica-border);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo { font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+
+        .nav-links { display: flex; gap: 8px; }
+
+        .nav-btn {
+            background: transparent; border: none; color: var(--text-main);
+            padding: 8px 16px; border-radius: 6px; cursor: pointer; transition: 0.2s;
+        }
+
+        .nav-btn:hover { background: var(--control-hover); }
+
+        .nav-btn.active { position: relative; font-weight: 600; }
+
+        .nav-btn.active::after {
+            content: ''; position: absolute; bottom: 2px; left: 20%; width: 60%; height: 3px;
+            background: var(--accent-color); border-radius: 3px;
+        }
+
+        .lang-switch { display: flex; background: var(--control-bg); border: 1px solid var(--mica-border); border-radius: 6px; overflow: hidden; }
+
+        .lang-btn { background: transparent; border: none; color: var(--text-secondary); padding: 6px 12px; cursor: pointer; transition: 0.2s; }
+
+        .lang-btn.active { background: var(--control-hover); color: var(--text-main); }
+
+        /* Контент */
+        main { flex: 1; padding: 40px 20px; max-width: 900px; margin: 0 auto; width: 100%; }
+
+        .page { display: none; animation: fadeIn 0.4s ease forwards; }
+
+        .page.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card { background: var(--mica-bg); backdrop-filter: blur(20px); border: 1px solid var(--mica-border); border-radius: 8px; padding: 24px; margin-bottom: 24px; }
+
+        .control-group { margin-bottom: 16px; display: flex; flex-direction: column; gap: 8px; }
+
+        select {
+            appearance: none; background: var(--control-bg); border: 1px solid var(--mica-border);
+            color: var(--text-main); padding: 10px 16px; border-radius: 6px; outline: none; cursor: pointer;
+        }
+
+        .btn-primary {
+            background: var(--accent-color); color: #000; border: none; padding: 12px 28px;
+            border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; text-decoration: none; display: inline-block;
+        }
+
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+                /* Общий стиль для всех выпадающих списков */
+        select {
+            appearance: none; /* Убираем стандартную стрелку браузера */
+            background: rgba(45, 45, 50, 0.6); /* Полупрозрачный фон */
+            backdrop-filter: blur(10px); /* Эффект размытия (Mica) */
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 8px 36px 8px 12px; /* 12px слева, чтобы текст не лип к краю */
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            
+            /* Добавляем свою современную стрелочку */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23ffffff' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: calc(100% - 12px) center;
+        }
+
+        /* Состояние при наведении */
+        select:hover {
+            background-color: rgba(60, 60, 65, 0.8);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Состояние при фокусе (выборе) */
+        select:focus {
+            border-color: #0078d4; /* Акцентный синий цвет Windows */
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.3);
+        }
+
+        /* Стилизация выпадающих пунктов (option) */
+        select option {
+            background-color: #202020; /* Темный фон для списка */
+            color: white;
+            padding: 10px;
+        }
+        /* Стилизация Markdown контента */
+        #docs-content h2 { margin: 20px 0 10px; color: var(--accent-color); }
+        #docs-content p { margin-bottom: 15px; line-height: 1.6; color: var(--text-secondary); }
+        #docs-content pre { background: rgba(0,0,0,0.4); padding: 16px; border-radius: 8px; border: 1px solid var(--mica-border); overflow-x: auto; margin: 15px 0; }
+        #docs-content code { color: #dcdcdc; font-family: 'Consolas', monospace; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <div class="logo">
+            <img src="icon.png" alt="PEngen Logo" class="logo-img">
+            PEngen
+        </div>
+        <div class="nav-links">
+            <button class="nav-btn active" onclick="navigate('home', event)" data-i18n="nav_home">Главная</button>
+            <button class="nav-btn" onclick="navigate('install', event)" data-i18n="nav_install">Установка</button>
+            <button class="nav-btn" onclick="navigate('docs', event)" data-i18n="nav_docs">Документация</button>
+        </div>
+        <div id="lang-switch" class="lang-switch">
+            </div>
+    </nav>
+
+    <main>
+        <section id="home" class="page active">
+            <h1 data-i18n="home_title">PEngen</h1>
+            <p data-i18n="home_desc">...</p>
+            <div class="card">
+                <h3 data-i18n="home_features_title">Возможности</h3>
+                <div id="home-content-extra"></div>
+            </div>
+        </section>
+
+        <section id="install" class="page">
+            <h1 data-i18n="install_title">Скачать движок</h1>
+            <div class="card">
+                <div class="control-group">
+                    <label data-i18n="install_ver_label">Версия:</label>
+                    <select id="engine-version"></select>
+                </div>
+                <div style="margin-top: 24px;">
+                    <button class="btn-primary" onclick="handleDownload()" data-i18n="btn_download">Скачать ZIP</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="docs" class="page">
+            <h1 data-i18n="docs_title">Документация</h1>
+            <div class="control-group" style="max-width: 300px; margin-bottom: 24px;">
+                <label data-i18n="docs_ver_label">Версия API:</label>
+                <select id="docs-version" onchange="renderDocs()"></select>
+            </div>
+            <div class="card" id="docs-content">
+                </div>
+        </section>
+    </main>
+
+    <script>
+        let config = null;
+        let currentLang = 'ru';
+
+        // Загрузка JSON конфига
+        async function init() {
+            try {
+                const response = await fetch('data/data.json');
+                config = await response.json();
+                
+                setupLanguageButtons();
+                setupVersionSelectors();
+                updateUI();
+            } catch (error) {
+                console.error("Ошибка инициализации:", error);
+                document.body.innerHTML = "<h2 style='color:white; padding:20px;'>Ошибка: data/data.json не найден.</h2>";
+            }
+        }
+
+        function setupLanguageButtons() {
+            const container = document.getElementById('lang-switch');
+            container.innerHTML = config.languages.map(lang => `
+                <button class="lang-btn ${lang.code === currentLang ? 'active' : ''}" 
+                        onclick="setLang('${lang.code}')">${lang.code.toUpperCase()}</button>
+            `).join('');
+        }
+
+        function setupVersionSelectors() {
+            const options = config.available_versions.map(v => 
+                `<option value="${v.id}">${v.name}</option>`
+            ).join('');
+            
+            document.getElementById('engine-version').innerHTML = options;
+            document.getElementById('docs-version').innerHTML = options;
+        }
+
+        function setLang(lang) {
+            currentLang = lang;
+            setupLanguageButtons();
+            updateUI();
+        }
+
+        function updateUI() {
+            if (!config) return;
+
+            // Локализация интерфейса
+            const strings = config.localization[currentLang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (strings[key]) el.innerText = strings[key];
+            });
+
+            renderDocs();
+        }
+
+        async function renderDocs() {
+    const versionId = document.getElementById('docs-version').value;
+    const contentDiv = document.getElementById('docs-content');
+    
+    // Формируем путь: docs/ID_ЯЗЫК.md (например: docs/beta_0.1.0_ru.md)
+    const filePath = `docs/${versionId}_${currentLang}.md`;
+
+    try {
+        contentDiv.innerHTML = "<p>Загрузка документации...</p>";
+        
+        const response = await fetch(filePath);
+        
+        if (!response.ok) {
+            throw new Error(`Файл ${filePath} не найден`);
+        }
+
+        const mdText = await response.text();
+        
+        // Рендерим Markdown из внешнего файла
+        contentDiv.innerHTML = marked.parse(mdText);
+        
+    } catch (error) {
+        console.error(error);
+        contentDiv.innerHTML = `
+            <div style="color:#ff6b6b; padding: 20px; border: 1px solid #ff6b6b; border-radius: 8px;">
+                <h3>Ошибка загрузки</h3>
+                <p>Не удалось найти файл: <b>${filePath}</b></p>
+                <p>Убедитесь, что файл существует в папке /docs/</p>
+            </div>`;
+    }
+}
+
+        function navigate(pageId, event) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(pageId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        function handleDownload() {
+            const ver = document.getElementById('engine-version').value;
+            // Путь формируется как dont/PEngen_beta_1.zip
+            const downloadUrl = `${config.download_base_path}PEngen_${ver}.zip`;
+            window.location.href = downloadUrl;
+        }
+
+        init();
+    </script>
+</body>
+</html>
