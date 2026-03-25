@@ -6,6 +6,7 @@
 #include <vector>
 #include <map>
 #include "../gnu/OpenGL.h"
+#include "PEAnim.h"
 
 struct GLFWwindow;
 
@@ -86,7 +87,7 @@ namespace PEngine {
         int screenHeight = 720;
         unsigned int next_object_id = 1;
         std::map<std::string, gnu::PEGLShaderProgram> sceneShaders;
-        std::vector<gnu::PEGLPointLight> Scene_lights;
+        std::vector<gnu::PEGLLight> Scene_lights;
 
         Scene(std::map<std::string, gnu::PEGLShaderProgram> shaders);
         Object& AddObject(const Object& object);
@@ -121,7 +122,7 @@ namespace PEngine {
         void Update();
 
         Scene* GetScene() { return scene; }
-
+        PEngine::Animator animator;
     private:
         GLFWwindow* window = nullptr;
         Scene* scene = nullptr;

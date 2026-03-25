@@ -48,9 +48,6 @@
     <ClCompile Include="IncludeCpp\PEngine\Physics\Physics Base.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="IncludeCpp\Script\Script.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="IncludeCpp\lua\lapi.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -153,7 +150,7 @@
     <ClCompile Include="IncludeCpp\lua\lzio.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="IncludeCpp\Script\PEScript.cpp">
+    <ClCompile Include="IncludeCpp\PEngine\PEAnim.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -2049,6 +2046,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="IncludeCpp\lua\lzio.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Include\PEngine\PEAnim.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

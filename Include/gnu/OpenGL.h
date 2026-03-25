@@ -33,9 +33,15 @@ namespace gnu {
     };
     struct PEGLMaterial {
         glm::vec3 baseColor{ 1.0f };
+        glm::vec3 diffuseColor{ 1.0f };
         float opacity = 1.0f;
         float shininess = 32.0f;
 
+        // --- НОВОЕ: Глобальное свечение объекта ---
+        glm::vec3 emissionColor{ 1.0f, 1.0f, 1.0f }; // Цвет свечения (по умолчанию белый)
+        float emissionIntensity = 0.0f;             // Сила свечения (0.0 - выключено)
+
+        // --- Текстуры ---
         GLuint diffuseMap = 0;
         GLuint normalMap = 0;
         GLuint specularMap = 0;
@@ -73,10 +79,23 @@ namespace gnu {
         std::vector<PEGLMesh> meshes;
     };
 
-    struct PEGLPointLight {
+    enum LightType {
+        LIGHT_POINT = 0,
+        LIGHT_AMBIENT = 1,
+        LIGHT_SOLAR = 2,
+        LIGHT_SPOT = 3,
+        LIGHT_RIM = 4
+    };
+
+    struct PEGLLight {
         glm::vec3 pos;
+        glm::vec3 dir;    
         glm::vec3 color;
         float intensity;
+        float radius;  
+        float innerCutoff;
+        float outerCutoff;
+        int type;
     };
 
     struct PEGLtinyobj_index_cmp {
@@ -92,10 +111,10 @@ namespace gnu {
     PEGLModel PEGLLoad_Model_From_File_OBJ(const std::string& filePath, const std::string& baseDir);
     PEGLModel PEGLCreate_Cube_Model();
     void PEGLDraw_Mesh(const PEGLMesh& mesh, const PEGLShaderProgram& shader,
-        const glm::mat4& viewProjection, const std::vector<PEGLPointLight>& allLights,
+        const glm::mat4& viewProjection, const std::vector<PEGLLight>& allLights,
         const glm::vec3& viewPos, const glm::mat4& modelMatrix);
     void PEGLDraw_Model(const PEGLModel& model, const PEGLShaderProgram& shader,
-        const glm::mat4& viewProjection, const std::vector<PEGLPointLight>& allLights,
+        const glm::mat4& viewProjection, const std::vector<PEGLLight>& allLights,
         const glm::vec3& viewPos, const glm::mat4& modelMatrix);
     void PEGLDelete_Model(PEGLModel& model);
     void PEGLDelete_Shader_Program(PEGLShaderProgram& program);
@@ -118,6 +137,9 @@ namespace gnu {
             std::string text = "Button";
             glm::vec3 textColor{ 0.0f, 0.0f, 0.0f };
             bool isHovered = false;
+            GLuint textureID = 0;
+            uint8_t state = 0;
+            float roundness = 12.0f;
         };
 
         struct PEGLCheckbox : public PEGLUIQuad {
@@ -139,6 +161,7 @@ namespace gnu {
         };
 
         struct PEGLPanel : public PEGLUIQuad {
+			float roundness = 0.0f;
         };
 
         PEGLMesh PEGLCreate_Quad_Mesh();

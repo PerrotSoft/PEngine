@@ -8,6 +8,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <chrono>
 
 namespace PEngine {
     Vec::Mat4::Mat4() {
@@ -41,10 +42,18 @@ namespace PEngine {
         return window ? glfwWindowShouldClose(window) : true;
     }
     void Engine::Update() {
+        static auto lastTime = std::chrono::high_resolution_clock::now();
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float deltaTime_ms = std::chrono::duration<float, std::milli>(currentTime - lastTime).count();
+        lastTime = currentTime;
+
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        if (scene) scene->Render();
+        if (scene) {
+            animator.UpdateAnimations(scene, deltaTime_ms);
+            scene->Render();
+        }
 
         if (window) {
             if (scene) scene->UpdateUI(window);
@@ -118,19 +127,20 @@ namespace PEngine {
         for (auto& obj : Scene_objects) {
             if (obj.state == 3) {
                 bool hovered = gnu::UI::PEGLis_point_in_quad(mouseX, mouseY, obj.button_ui);
+
                 if (hovered && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-                    obj.is_pressed = true;
-                    obj.visual_scale = 0.9f;
+                    if (!obj.is_pressed) {
+                        obj.is_pressed = true;
+                        obj.visual_scale = 0.9f;
+                        obj.button_ui.size *= obj.visual_scale;
+                    }
                 }
                 else if (obj.is_pressed && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE) {
+                    obj.button_ui.size /= obj.visual_scale;
                     obj.is_pressed = false;
                     obj.visual_scale = 1.0f;
                     if (hovered && obj.on_click) obj.on_click(obj);
                 }
-                else {
-                    obj.visual_scale = 1.0f;
-                }
-                obj.button_ui.size = glm::vec2(200.0f * obj.visual_scale, 50.0f * obj.visual_scale);
             }
             else if (obj.state == 4) {
                 bool hovered = gnu::UI::PEGLis_point_in_quad(mouseX, mouseY, obj.checkbox_ui);
